@@ -1,0 +1,123 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap");
+
+.gallery-tree-container {
+        margin: 0 0 1rem 0;
+}
+
+#gallery-tree {
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        padding: 0.75rem;
+        background-color: #f9fafb;
+        font-family: "Outfit", sans-serif;
+        color: #1f2937;
+}
+
+#gallery-tree .gallery-tree__placeholder {
+        margin: 0;
+        font-size: 0.95rem;
+        color: #6b7280;
+}
+
+#gallery-tree .gallery-tree__list {
+        list-style: none;
+        margin: 0;
+        padding-left: 1.25rem;
+}
+
+#gallery-tree > .gallery-tree__list {
+        padding-left: 0;
+}
+
+#gallery-tree .gallery-tree__item {
+        margin: 0;
+        padding: 0;
+}
+
+#gallery-tree .gallery-tree__row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.2rem 0.25rem;
+        border-radius: 3px;
+        cursor: pointer;
+}
+
+#gallery-tree .gallery-tree__row:hover {
+        background-color: #e0f2fe;
+}
+
+#gallery-tree .gallery-tree__toggle {
+        width: 1.5rem;
+        height: 1.5rem;
+        line-height: 1.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid transparent;
+        background-color: transparent;
+        color: #4b5563;
+        cursor: pointer;
+        font-size: 1rem;
+        padding: 0;
+}
+
+#gallery-tree .gallery-tree__toggle:focus {
+        outline: none;
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.35);
+}
+
+#gallery-tree .gallery-tree__toggle--empty {
+        width: 1.5rem;
+        height: 1.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: transparent;
+}
+
+#gallery-tree .gallery-tree__label {
+        background-color: transparent;
+        border: none;
+        padding: 0.1rem 0.4rem;
+        font-size: 0.95rem;
+        color: #1d4ed8;
+        cursor: pointer;
+        text-align: left;
+}
+
+#gallery-tree .gallery-tree__label:hover,
+#gallery-tree .gallery-tree__label:focus {
+        outline: none;
+        color: #0f172a;
+}
+
+#gallery-tree .gallery-tree__item.is-active > .gallery-tree__row {
+        background-color: #dbeafe;
+        border-left: 3px solid #2563eb;
+}
+
+#gallery-tree .gallery-tree__item.is-active > .gallery-tree__row .gallery-tree__label {
+        color: #0f172a;
+        font-weight: bold;
+}
+
+#gallery-tree .gallery-tree__item.is-collapsed > .gallery-tree__list {
+        display: none;
+}
+
+#gallery-tree .gallery-tree__item.is-expanded > .gallery-tree__row .gallery-tree__toggle {
+        color: #1f2937;
+}
+
+#gallery-tree .gallery-tree__list .gallery-tree__item {
+        border-left: 1px dashed #d1d5db;
+        margin-left: 0.5rem;
+        padding-left: 0.5rem;
+}
+
+#gallery-tree .gallery-tree__label:focus-visible {
+        outline: 2px solid #60a5fa;
+        outline-offset: 2px;
+}

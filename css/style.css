@@ -1,0 +1,189 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap");
+
+body
+{
+        font-family:"Outfit", sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6
+{
+        font-family:"Nunito Sans", sans-serif;
+}
+
+.header
+{
+        position:relative;
+	border-width:1px;
+	border-color:#22263C;
+	border-style:solid;
+	background-color:#375D81;
+	height:15%;
+	width:100%;
+}
+
+.menu
+{
+	position:fixed;
+	top:15%;
+	left:0%;
+	border-width:1px;
+	border-color:#22263C;
+	border-style:solid;
+	background-color:#FFFFFF;
+	margin-top:0%;
+	margin-left:0%;
+	margin-right:0%;
+	width:20%;
+	height:80%;
+	overflow:scroll;
+}
+
+.main
+{
+	position:fixed;
+	top:15%;
+	left:20%;
+	border-width:1px;
+	border-color:#22263C;
+	border-style:solid;
+	background-color:#FFFFFF;
+	margin-top:0%;
+	margin-left:0px;
+	width:80%;
+	height:80%;
+	overflow:scroll;
+}
+
+.footer
+{
+	border-width:1px;
+	border-color:#22263C;
+	border-style:solid;
+	background-color:#375D81;
+    height:10%;
+    width:100%;
+    position: absolute;
+}
+
+.option
+{
+	text-indent:20px;
+}
+
+.optionhighlight
+{
+	font-weight:bold;
+	text-indent:30px;
+}
+
+.optioncurrent
+{
+	font-weight:bold;
+
+	text-indent:30px;
+}
+
+.option>a, .optionhighlight>a, .optioncurrent>a
+{
+	text-decoration:none;
+}
+
+.optioncurrent>a
+{
+	color:#FF8000;
+}
+
+.optgroup
+{
+	text-transform:uppercase;
+	font-weight:bold;
+	text-indent:10px;
+}
+
+table
+{
+	#border: 1px solid black;
+	#border-collapse: separate;
+}
+table td
+{
+	border: 1px solid #b2b9c1;
+	padding:2px;
+	box-shadow: 2px 0 8px 0 #b2b9c1;
+	-webkit-border-radius: 5px;
+	-moz-border-radius: 5px;
+}
+
+table td:hover
+{
+	background-color: #3399FF;
+}
+
+table td img
+{
+	border: 2px solid white;
+}
+
+#snapshot, #right, #left, #right:hover, #left:hover, #next, #previous, #next:hover, #previous:hover, #zoom:hover, #close:hover, #zoom, #close, #legend, #legend:hover
+{
+	position:absolute;
+}
+
+#right, #left, #next, #previous, #zoom, #close, #legend
+{
+	background: transparent url("") no-repeat center center;
+	color: transparent;
+}
+
+#right:hover, #left:hover, #next:hover, #previous:hover, #zoom:hover, #close:hover, #legend:hover
+{
+	opacity:0.6;
+	filter:alpha(opacity=0.6);
+}
+
+#right:hover
+{
+	background: white url("rotate-right.png") no-repeat center center;
+}
+
+#left:hover
+{
+	background: white url("rotate-left.png") no-repeat center center;
+}
+
+#next:hover
+{
+	background: white url("round_arrow_right.png") no-repeat center center;
+}
+
+#previous:hover
+{
+	background: white url("round_arrow_left.png") no-repeat center center;
+}
+
+#zoom:hover
+{
+	background: white url("searchtool.png") no-repeat center center;
+}
+#close:hover
+{
+	background: white url("remove.png") no-repeat center center;
+}
+
+#legend:hover
+{
+	background: white url("") no-repeat center center;
+	text-align: center;
+	color: black;
+	font-weight : bold;
+}
+
+#img_snapshot
+{
+	border-width:10px;
+	border-color:#375D81;
+	border-style:solid;
+	box-shadow: 0 0 5px 5px #375D81;
+	border-top-left-radius:30px 30px;
+	border-bottom-right-radius:30px 30px;
+}
