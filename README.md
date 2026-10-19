@@ -9,25 +9,21 @@ Un petit site familial — volontairement old school — pour naviguer dans des 
 ## Fonctionnement du site
 
 ### Pages principales
-- `index.php` initialise la configuration (nombre de vignettes par ligne selon la résolution, tailles des images) puis inclut les différents blocs du site.
-- `header.php`, `menu.php` et `main.php` composent respectivement l’en-tête, le menu de navigation et le contenu principal.
-- `Diaporama.php` affiche le diaporama d’un dossier sélectionné.
-- `Gallery.php` construit le sélecteur de rubriques en parcourant l’arborescence des galeries.
+- `index.php` valide la galerie et l'album demandés, puis compose la page : en-tête (`header.php`), menu des albums (`Gallery.php`), contenu, pied de page (`footer.php`). La mise en page s'adapte à l'écran : sur téléphone, le menu des albums s'ouvre avec le bouton « Albums ».
+- `main.php` est la page d'accueil : photo principale, galeries et nouvelles de la famille.
+- `RenderAlbum()` (dans `functions.php`) affiche un album : fil d'Ariane, introduction, sous-albums avec leur couverture, puis la grille des photos et vidéos.
 
 ### Navigation et diaporama
 1. Depuis la page d'accueil, l'utilisateur choisit une galerie (ex. `GalleryPhotos` ou `GalleryCreative`).
 2. Chaque dossier correspond à un album, à n'importe quelle profondeur (« 2024 / Vacances / Plage »). Le menu reproduit automatiquement l'arborescence du disque.
 3. Les vignettes, aperçus et vidéos converties sont préparés à l'avance par le traitement en arrière-plan (voir plus bas) ; la page de l'album lit simplement la fiche `album.json` de l'album dans le cache.
 
-### Visionneuse enrichie
-Le code JavaScript (`script/script.js`) fournit :
-- une visionneuse en surimpression avec navigation précédente/suivante,
-- la rotation des images (boutons gauche/droite),
-- l’ouverture du média en pleine qualité dans un nouvel onglet (« Zoom »),
-- la lecture native des vidéos via la balise `<video>`, avec leur image d'aperçu,
-- l’affichage des légendes.
-
-Les boutons de contrôle sont visibles uniquement lorsque l’overlay est actif.
+### Visionneuse
+`script/viewer.js` ouvre les photos et vidéos en plein écran :
+- précédent et suivant avec les flèches, les touches ← → ou en glissant le doigt ; Échap, la croix, un glissement vers le bas ou le bouton retour du téléphone pour fermer ;
+- lecture native des vidéos avec leur image d'aperçu ;
+- lien « Original » vers le fichier en pleine qualité, légende et date de prise de vue ;
+- l'adresse garde le média ouvert (`#media=nom`), ce qui permet de partager un lien vers une photo.
 
 ### Traitement automatique des médias
 `bin/process-media.php` tourne en continu dans le conteneur Docker et repasse sur les galeries toutes les `SITEIMAGEPERSO_SCAN_INTERVAL` secondes (60 par défaut). Pour chaque fichier, il :
@@ -39,7 +35,7 @@ Les boutons de contrôle sont visibles uniquement lorsque l’overlay est actif.
 
 Tout est rangé dans le cache (`cache/` par défaut), qui reproduit l'arborescence des galeries. **Les originaux ne sont jamais modifiés** et rien n'est écrit dans les dossiers d'albums. Un fichier déjà traité et inchangé n'est pas retraité ; un fichier supprimé disparaît du cache au passage suivant. Le cache peut être effacé sans risque : il se reconstruit tout seul.
 
-Lancement à la main (hors Docker) : `php bin/process-media.php --once -v`. Outils nécessaires : `vipsthumbnail` (paquet `libvips-tools`, avec `libheif-plugin-libde265` pour le HEIC), `ffmpeg` et `ffprobe`.
+Lancement à la main (hors Docker) : `php bin/process-media.php --once -v`. Outils nécessaires : `vipsthumbnail` avec la prise en charge HEIF (paquets `vips-tools` et `vips-heif` sous Alpine, `libvips-tools` et `libheif-plugin-libde265` sous Debian/Ubuntu), `ffmpeg` et `ffprobe`.
 
 ### Légendes
 Chaque album peut contenir un fichier texte `legendes.txt` :
@@ -65,9 +61,10 @@ Pour convertir les anciennes légendes (dossier `Legend/` avec un fichier HTML p
 3. L'album apparaît sur le site au fil du traitement, en général dans la minute pour les photos. Les vidéos à convertir demandent plus de temps.
 
 ### Personnalisation
-- `ImagesSite/` contient les images utilisées sur la page d’accueil (ex. `volute019.png`).
+- `ImagesSite/` contient les images utilisées sur la page d’accueil (ex. `MainPhoto.jpg`, affichée en haut de l’accueil si elle existe).
 - `main.php` liste les actualités à mettre à jour manuellement.
-- `header.php` et `css/style.css` permettent d’adapter le bandeau et l’apparence générale.
+- Les noms des galeries se règlent dans `GetGalleryLabel()` (`lib/media.php`) ou avec `SITEIMAGEPERSO_GALLERY_LABELS="GalleryPhotos=Galerie des gosses;GalleryCreative=Galerie des glaces"`.
+- `header.php` et `css/style.css` permettent d’adapter le bandeau et l’apparence générale (les couleurs sont regroupées en haut de `css/style.css`).
 
 ## Diagnostics sécurisés
 `InfoSite.php` est protégé pour éviter toute exposition accidentelle en production. Par défaut, la page renvoie une erreur 404.
@@ -102,10 +99,11 @@ Un environnement Docker est fourni pour simplifier la mise en place du site avec
 
 ### Notes complémentaires
 - Les répertoires `GalleryPhotos/` et `GalleryCreative/` présents dans ce dépôt servent de points de montage par défaut. Ils restent vides grâce aux `.gitignore` internes afin d’éviter d’ajouter les médias au dépôt.
+- Mémoire : au repos, le conteneur occupe environ 50 Mo. Le pic vient de la conversion d'une vidéo (environ 300 Mo en 1080p avec `SITEIMAGEPERSO_FFMPEG_THREADS=2`, la valeur par défaut ; 1 fil réduit encore la mémoire mais allonge la conversion). Apache est limité à `SITEIMAGEPERSO_MAX_WORKERS` processus (10 par défaut, au lieu de 150).
 - Le script d’entrée du conteneur prépare le dossier du cache et lance le traitement des médias en arrière-plan (désactivable avec `SITEIMAGEPERSO_DISABLE_PROCESSOR=1`). Son journal est visible avec `docker compose logs -f`.
 
 ## Tests
-`php tests/MediaProcessingTest.php` vérifie la détection des formats, l'orientation EXIF, la conversion des vidéos, le cache, la lecture et la migration des légendes (les cas qui demandent `vipsthumbnail` ou `ffmpeg` sont ignorés si ces outils manquent). Dans Docker : `docker compose run --rm --entrypoint php siteimageperso tests/MediaProcessingTest.php`.
+`php tests/MediaProcessingTest.php` vérifie la détection des formats, l'orientation EXIF, la conversion des vidéos, le cache, la lecture et la migration des légendes (les cas qui demandent `vipsthumbnail` ou `ffmpeg` sont ignorés si ces outils manquent). Dans Docker, tout doit passer, y compris la photo HEIC d'exemple (`tests/samples/iphone.heic`) : `docker compose build && docker compose run --rm --entrypoint php siteimageperso tests/MediaProcessingTest.php`. C'est la vérification à faire après chaque changement de l'image (version d'Alpine, paquets).
 
 Le fichier `tests/VideoAccessTest.php` lance un serveur PHP intégré et vérifie que `video.php` répond correctement (statuts 200/403/404). Exécuter le script `php tests/VideoAccessTest.php` permet de s’assurer que la diffusion vidéo reste sécurisée.
 

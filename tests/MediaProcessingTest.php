@@ -4,8 +4,9 @@
  * des légendes et l'affichage d'un album à partir du cache.
  *
  * Usage : php tests/MediaProcessingTest.php
- * Les cas qui demandent vipsthumbnail, ffmpeg ou heif-enc sont ignorés
- * si ces outils ne sont pas installés.
+ * Les cas qui demandent vipsthumbnail ou ffmpeg sont ignorés si ces
+ * outils ne sont pas installés. Dans l'image Docker, tout doit passer :
+ * c'est la vérification à faire après chaque changement de l'image.
  */
 
 function assertSameValue($expected, $actual, $message)
@@ -110,7 +111,6 @@ try
         putenv('SITEIMAGEPERSO_MEDIA_BASE=' . $projectRoot);
         putenv('SITEIMAGEPERSO_GALLERY_ROOTS=' . $galleryName);
         putenv('SITEIMAGEPERSO_CACHE_DIR=' . $cacheRoot);
-        define('K_MIDDLESIZE', 800);
         require $projectRoot . '/functions.php';
 
         // Lecture de legendes.txt
@@ -155,16 +155,15 @@ try
         else
         {
                 createJpegWithExif($album . '/coucher.jpg', 'Coucher de soleil');
+                mkdir($galleryRoot . '/2024/Noël à la mer', 0777, TRUE);
+                createJpegWithExif($galleryRoot . '/2024/Noël à la mer/sapin.jpg', '');
+                touch($galleryRoot . '/2024/Noël à la mer/sapin.jpg', time() - 60);
                 file_put_contents($album . '/legendes.txt', "Une belle journée <b>ensoleillée</b>\n\ncoucher.jpg: Le soir & la mer\n");
                 $expectedNames = array('coucher.jpg');
 
-                if (commandExists('heif-enc'))
-                {
-                        imagepng(imagecreatetruecolor(320, 240), $album . '/source.png');
-                        shell_exec('heif-enc -q 50 ' . escapeshellarg($album . '/source.png') . ' -o ' . escapeshellarg($album . '/iphone.heic') . ' 2>&1');
-                        unlink($album . '/source.png');
-                        $expectedNames[] = 'iphone.heic';
-                }
+                // Photo HEIC (format des iPhone) : vérifie que vips sait la décoder
+                copy($projectRoot . '/tests/samples/iphone.heic', $album . '/iphone.heic');
+                $expectedNames[] = 'iphone.heic';
 
                 if (commandExists('ffmpeg'))
                 {
@@ -201,6 +200,8 @@ try
                 assertTrueValue(is_file($album . '/../../2024/Plage/legendes.txt'), 'legendes.txt est conservé');
                 assertTrueValue(!is_file($album . '/coucher.jpg.thumb.jpg'), 'Rien n\'est écrit dans le dossier de l\'album');
                 assertTrueValue(is_file($cacheRoot . '/' . $galleryName . '/2024/album.json'), 'Une fiche est créée pour chaque dossier');
+                $accentManifest = LoadAlbumManifest('./' . $galleryName . '/2024/Noël à la mer');
+                assertSameValue(1, count($accentManifest['items']), 'Un album au nom accentué est traité');
                 assertTrueValue(!is_dir($cacheRoot . '/' . $galleryName . '/2024/Plage/Small'), 'Les dossiers de l\'ancien site sont ignorés');
 
                 $items = array();
@@ -216,10 +217,7 @@ try
                 list($thumbWidth, $thumbHeight) = getimagesize($cacheRoot . '/' . $galleryName . '/2024/Plage/coucher.jpg.thumb.jpg');
                 assertTrueValue($thumbHeight > $thumbWidth, 'La vignette est tournée');
 
-                if (isset($items['iphone.heic']))
-                {
-                        assertTrueValue(is_string($items['iphone.heic']['full']), 'Une version JPEG du HEIC est créée');
-                }
+                assertTrueValue(is_string($items['iphone.heic']['full']), 'Une version JPEG du HEIC est créée');
 
                 if (isset($items['lisible.mp4']))
                 {
@@ -229,11 +227,18 @@ try
                 }
 
                 // Affichage : legendes.txt passe avant la légende EXIF, et le texte est échappé
-                $html = DisplayDiaporama('./' . $galleryName . '/2024/Plage', 6, 100, 800);
+                $html = RenderAlbum('./' . $galleryName, './' . $galleryName . '/2024/Plage');
                 assertTrueValue(strpos($html, 'Le soir &amp; la mer') !== FALSE, 'La légende de legendes.txt est affichée');
                 assertTrueValue(strpos($html, 'Une belle journée &lt;b&gt;ensoleillée&lt;/b&gt;') !== FALSE, 'L\'introduction est échappée');
-                $script = GetJSListOFImage('./' . $galleryName . '/2024/Plage');
-                assertTrueValue(strpos($script, 'NbMedia=' . count($expectedNames) . ';') !== FALSE, 'La visionneuse reçoit tous les médias');
+                assertTrueValue(preg_match('#<script type="application/json" id="album-media">(.*?)</script>#s', $html, $viewerData) === 1, 'La liste de la visionneuse est présente');
+                $viewerItems = json_decode($viewerData[1], TRUE);
+                assertSameValue(count($expectedNames), count($viewerItems), 'La visionneuse reçoit tous les médias');
+                assertSameValue(substr_count($html, 'class="media-thumb '), count($viewerItems), 'Une vignette par média');
+
+                // L'album parent montre le sous-album avec sa couverture
+                $parentHtml = RenderAlbum('./' . $galleryName, './' . $galleryName . '/2024');
+                assertTrueValue(strpos($parentHtml, 'class="album-card"') !== FALSE, 'Le sous-album est proposé');
+                assertTrueValue(strpos($parentHtml, '2024/Plage/') !== FALSE, 'La couverture vient du sous-album');
 
                 // Un second passage ne retraite rien ; un fichier supprimé disparaît du cache
                 $generated = $manifest['generated'];

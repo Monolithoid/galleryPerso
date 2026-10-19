@@ -9,6 +9,8 @@ services:
       - "${SITEIMAGEPERSO_HTTP_PORT:-8080}:80"
     environment:
       SITEIMAGEPERSO_SCAN_INTERVAL: "${SITEIMAGEPERSO_SCAN_INTERVAL:-60}"
+      SITEIMAGEPERSO_MAX_WORKERS: "${SITEIMAGEPERSO_MAX_WORKERS:-10}"
+      SITEIMAGEPERSO_FFMPEG_THREADS: "${SITEIMAGEPERSO_FFMPEG_THREADS:-2}"
     volumes:
       - "${SITEIMAGEPERSO_GALLERY_PHOTOS:-./GalleryPhotos}:/var/www/html/GalleryPhotos"
       - "${SITEIMAGEPERSO_GALLERY_CREATIVE:-./GalleryCreative}:/var/www/html/GalleryCreative"

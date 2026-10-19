@@ -92,6 +92,31 @@ function GetGalleryRootNames()
         return $Names;
 }
 
+// Nom affiché d'une galerie, par exemple SITEIMAGEPERSO_GALLERY_LABELS="GalleryPhotos=Galerie des gosses"
+function GetGalleryLabel($RootName)
+{
+        $Labels = array(
+                'GalleryPhotos' => 'Galerie des gosses',
+                'GalleryCreative' => 'Galerie des glaces'
+        );
+        $Configured = getenv('SITEIMAGEPERSO_GALLERY_LABELS');
+
+        if (($Configured !== FALSE) && ($Configured !== ''))
+        {
+                foreach (explode(';', $Configured) as $Pair)
+                {
+                        $Parts = explode('=', $Pair, 2);
+
+                        if (count($Parts) === 2)
+                        {
+                                $Labels[trim($Parts[0])] = trim($Parts[1]);
+                        }
+                }
+        }
+
+        return isset($Labels[$RootName]) ? $Labels[$RootName] : $RootName;
+}
+
 function IsIgnoredMediaEntry($Name)
 {
         if (($Name === '') || ($Name[0] === '.') || ($Name[0] === '@'))

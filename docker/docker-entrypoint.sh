@@ -50,7 +50,7 @@ select_web_owner() {
         return 0
     fi
 
-    for CANDIDATE_USER in www-data apache nginx; do
+    for CANDIDATE_USER in apache www-data nginx; do
         if id -u "$CANDIDATE_USER" >/dev/null 2>&1; then
             PRIMARY_GROUP=$(id -gn "$CANDIDATE_USER")
             echo "$CANDIDATE_USER:$PRIMARY_GROUP"
@@ -79,6 +79,15 @@ initialize_gallery_directory "/var/www/html/GalleryPhotos" "$WEB_OWNER"
 initialize_gallery_directory "/var/www/html/GalleryCreative" "$WEB_OWNER"
 initialize_gallery_directory "/var/www/html/cache" "$WEB_OWNER"
 
+# su-exec sur Alpine, setpriv ailleurs
+run_as_web_user() {
+    if command -v su-exec >/dev/null 2>&1; then
+        su-exec "$WEB_USER:$WEB_GROUP" "$@"
+    else
+        setpriv --reuid="$WEB_USER" --regid="$WEB_GROUP" --init-groups "$@"
+    fi
+}
+
 # Traitement des médias en arrière-plan : vignettes, aperçus, vidéos converties.
 # Il repasse sur les galeries toutes les SITEIMAGEPERSO_SCAN_INTERVAL secondes.
 start_media_processor() {
@@ -90,12 +99,14 @@ start_media_processor() {
 
     (
         while true; do
-            setpriv --reuid="$WEB_USER" --regid="$WEB_GROUP" --init-groups \
-                php /var/www/html/bin/process-media.php --interval="$SCAN_INTERVAL" || true
+            run_as_web_user php /var/www/html/bin/process-media.php --interval="$SCAN_INTERVAL" || true
             sleep 10
         done
     ) &
 }
+
+# Nombre maximal de processus Apache (voir docker/apache/site.conf)
+export SITEIMAGEPERSO_MAX_WORKERS="${SITEIMAGEPERSO_MAX_WORKERS:-10}"
 
 if [ "${SITEIMAGEPERSO_DISABLE_PROCESSOR:-}" = "" ]; then
     start_media_processor
