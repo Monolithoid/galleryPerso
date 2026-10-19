@@ -54,9 +54,13 @@ function DebugLine($Message)
 
 function RunCommand($Arguments, &$Output = NULL)
 {
-        $Command = implode(' ', array_map('escapeshellarg', $Arguments));
+        // Sans shell et en locale UTF-8 : sinon les noms accentués
+        // (« Noël », « Vacances à la mer ») sont refusés ou abîmés
+        $Command = implode(' ', $Arguments);
         $Descriptors = array(1 => array('pipe', 'w'), 2 => array('pipe', 'w'));
-        $Process = proc_open($Command, $Descriptors, $Pipes);
+        // VIPS_CONCURRENCY=1 : une image à la fois, mémoire minimale
+        $Environment = array_merge(array('VIPS_CONCURRENCY' => '1'), getenv(), array('LC_ALL' => 'C.UTF-8'));
+        $Process = proc_open($Arguments, $Descriptors, $Pipes, NULL, $Environment);
 
         if (is_resource($Process) === FALSE)
         {
@@ -255,7 +259,7 @@ function ProbeVideo($SourcePath)
 {
         $Output = '';
 
-        if (RunCommand(array('ffprobe', '-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', $SourcePath), $Output) !== 0)
+        if (RunCommand(array('ffprobe', '-v', 'error', '-threads', '1', '-print_format', 'json', '-show_format', '-show_streams', $SourcePath), $Output) !== 0)
         {
                 return NULL;
         }
@@ -349,15 +353,24 @@ function IsBrowserPlayable($Probe)
         return FALSE;
 }
 
+// Moins de fils = moins de mémoire : environ 300 Mo au maximum avec 2 fils pour une vidéo 1080p
+function GetFfmpegThreads()
+{
+        $Configured = (int) getenv('SITEIMAGEPERSO_FFMPEG_THREADS');
+
+        return (string) (($Configured > 0) ? $Configured : 2);
+}
+
 function TranscodeVideo($SourcePath, $DestinationPath, $HasAudio)
 {
         $TemporaryPath = dirname($DestinationPath) . '/.tmp' . getmypid() . '-' . basename($DestinationPath);
         $Arguments = array(
                 'nice', '-n', '15',
-                'ffmpeg', '-nostdin', '-y', '-v', 'error', '-i', $SourcePath,
+                'ffmpeg', '-nostdin', '-y', '-v', 'error', '-threads', GetFfmpegThreads(), '-i', $SourcePath,
                 '-map', '0:v:0', '-map', '0:a:0?',
                 '-vf', "scale='min(" . MEDIA_VIDEO_MAX_WIDTH . ",iw)':-2",
                 '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p',
+                '-threads', GetFfmpegThreads(), '-x264-params', 'rc-lookahead=10',
                 '-movflags', '+faststart', '-f', 'mp4'
         );
 
@@ -392,8 +405,8 @@ function ProcessVideo($SourcePath, $CacheDirectory, $AlbumCacheUrl, $AlbumSource
         $PosterPath = $CacheDirectory . '/' . $Name . '.poster.jpg';
         $SeekSeconds = ($Probe['duration'] > 2) ? 1 : 0;
 
-        if ((RunCommand(array('ffmpeg', '-nostdin', '-y', '-v', 'error', '-ss', (string) $SeekSeconds, '-i', $SourcePath, '-frames:v', '1', '-q:v', '3', $PosterPath)) !== 0)
-                && (RunCommand(array('ffmpeg', '-nostdin', '-y', '-v', 'error', '-i', $SourcePath, '-frames:v', '1', '-q:v', '3', $PosterPath)) !== 0))
+        if ((RunCommand(array('ffmpeg', '-nostdin', '-y', '-v', 'error', '-threads', GetFfmpegThreads(), '-ss', (string) $SeekSeconds, '-i', $SourcePath, '-frames:v', '1', '-q:v', '3', $PosterPath)) !== 0)
+                && (RunCommand(array('ffmpeg', '-nostdin', '-y', '-v', 'error', '-threads', GetFfmpegThreads(), '-i', $SourcePath, '-frames:v', '1', '-q:v', '3', $PosterPath)) !== 0))
         {
                 return NULL;
         }

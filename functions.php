@@ -205,20 +205,6 @@ function remove_fileext($str) {
         return $noext ;
 }
 
-// Dimensions d'un média ramenées dans un carré de $BoxSize pixels
-function FitMediaSize($Width, $Height, $BoxSize)
-{
-        $Width = max(1, (int) $Width);
-        $Height = max(1, (int) $Height);
-
-        if ($Width > $Height)
-        {
-                return array($BoxSize * 1.00, round($BoxSize * $Height / $Width));
-        }
-
-        return array(round($BoxSize * $Width / $Height), $BoxSize * 1.00);
-}
-
 function FormatMediaDuration($Seconds)
 {
         $Seconds = (int) round($Seconds);
@@ -236,93 +222,308 @@ function FormatMediaText($Text)
         return nl2br(htmlspecialchars($Text, ENT_QUOTES, 'UTF-8'));
 }
 
-/*
- * Grille de vignettes d'un album, à partir de la fiche album.json
- * préparée par bin/process-media.php.
- */
-function DisplayDiaporama($PathDiaporama, $RowSize, $SmallSize, $MiddleSize)
+function EscapeHtml($Text)
 {
-        $ResolvedPath = ResolveGalleryDirectoryPath($PathDiaporama);
+        return htmlspecialchars((string) $Text, ENT_QUOTES, 'UTF-8');
+}
+
+/*
+ * Valide la galerie et l'album demandés (paramètres Gallery et Diaporama).
+ * L'album doit se trouver dans la galerie. Renvoie les chemins relatifs
+ * nettoyés ("./GalleryPhotos/2024") et un indicateur de requête invalide.
+ */
+function ResolveGallerySelection($GalleryRequest, $DiaporamaRequest)
+{
+        $Selection = array('gallery' => '', 'album' => '', 'invalid' => FALSE);
+        $GalleryInfo = ResolveGalleryDirectoryPath($GalleryRequest);
+        $DiaporamaInfo = ResolveGalleryDirectoryPath($DiaporamaRequest);
+
+        if ((($GalleryRequest !== NULL) && ($GalleryRequest !== '') && ($GalleryInfo === NULL))
+                || (($DiaporamaRequest !== NULL) && ($DiaporamaRequest !== '') && ($DiaporamaInfo === NULL)))
+        {
+                $Selection['invalid'] = TRUE;
+
+                return $Selection;
+        }
+
+        if (($GalleryInfo !== NULL) && ($DiaporamaInfo !== NULL))
+        {
+                $GalleryAbsolutePrefix = $GalleryInfo['absolute'] . DIRECTORY_SEPARATOR;
+
+                if (($DiaporamaInfo['absolute'] !== $GalleryInfo['absolute'])
+                        && (strncmp($DiaporamaInfo['absolute'], $GalleryAbsolutePrefix, strlen($GalleryAbsolutePrefix)) !== 0))
+                {
+                        $Selection['invalid'] = TRUE;
+
+                        return $Selection;
+                }
+        }
+
+        if ($GalleryInfo !== NULL)
+        {
+                $Selection['gallery'] = $GalleryInfo['relative'];
+        }
+
+        if ($DiaporamaInfo !== NULL)
+        {
+                $Selection['album'] = $DiaporamaInfo['relative'];
+        }
+
+        return $Selection;
+}
+
+function GetAlbumUrl($Gallery, $Album = '')
+{
+        $Parameters = array('Gallery' => $Gallery);
+
+        if (($Album !== '') && ($Album !== $Gallery))
+        {
+                $Parameters['Diaporama'] = $Album;
+        }
+
+        return 'index.php?' . http_build_query($Parameters);
+}
+
+// Sous-dossiers d'un album, triés par nom (les plus récents d'abord pour les années)
+function ListSubAlbums($RelativePath)
+{
+        $ResolvedPath = ResolveGalleryDirectoryPath($RelativePath);
 
         if ($ResolvedPath === NULL)
         {
-                return 'Pas d\'images';
+                return array();
         }
 
+        $SubAlbums = array();
+
+        foreach (BuildGalleryTreeFromAbsolutePath($ResolvedPath['absolute'], $ResolvedPath['relative'], 0, 0) as $Node)
+        {
+                $SubAlbums[] = array('label' => $Node['label'], 'path' => $Node['path']);
+        }
+
+        usort($SubAlbums, function ($Left, $Right)
+        {
+                $LeftIsYear = preg_match('/^\d{4}/', $Left['label']) === 1;
+                $RightIsYear = preg_match('/^\d{4}/', $Right['label']) === 1;
+
+                if ($LeftIsYear && $RightIsYear)
+                {
+                        return strnatcasecmp($Right['label'], $Left['label']);
+                }
+
+                return strnatcasecmp($Left['label'], $Right['label']);
+        });
+
+        return $SubAlbums;
+}
+
+// Vignette de couverture : premier média de l'album, ou d'un de ses sous-albums
+function FindAlbumCover($RelativePath, $Depth = 0)
+{
+        $Manifest = LoadAlbumManifest($RelativePath);
+
+        if (($Manifest !== NULL) && (count($Manifest['items']) > 0))
+        {
+                foreach ($Manifest['items'] as $Item)
+                {
+                        if ($Item['kind'] === 'image')
+                        {
+                                return $Item['thumb'];
+                        }
+                }
+
+                return $Manifest['items'][0]['thumb'];
+        }
+
+        if ($Depth >= 3)
+        {
+                return NULL;
+        }
+
+        foreach (ListSubAlbums($RelativePath) as $SubAlbum)
+        {
+                $Cover = FindAlbumCover($SubAlbum['path'], $Depth + 1);
+
+                if ($Cover !== NULL)
+                {
+                        return $Cover;
+                }
+        }
+
+        return NULL;
+}
+
+function RenderAlbumCards($Gallery, $Albums)
+{
+        $Html = '<ul class="album-cards">';
+
+        foreach ($Albums as $Album)
+        {
+                $Cover = FindAlbumCover($Album['path']);
+                $Manifest = LoadAlbumManifest($Album['path']);
+                $Count = ($Manifest !== NULL) ? count($Manifest['items']) : 0;
+
+                $AlbumGallery = isset($Album['gallery']) ? $Album['gallery'] : $Gallery;
+                $Html .= '<li><a class="album-card" href="' . EscapeHtml(GetAlbumUrl($AlbumGallery, $Album['path'])) . '">';
+
+                if ($Cover !== NULL)
+                {
+                        $Html .= '<img src="' . EscapeHtml($Cover) . '" alt="" loading="lazy">';
+                }
+                else
+                {
+                        $Html .= '<span class="album-card__empty" aria-hidden="true"></span>';
+                }
+
+                $Html .= '<span class="album-card__title">' . EscapeHtml($Album['label']) . '</span>';
+
+                if ($Count > 0)
+                {
+                        $Html .= '<span class="album-card__count">' . $Count . ' ' . (($Count > 1) ? 'éléments' : 'élément') . '</span>';
+                }
+
+                $Html .= '</a></li>';
+        }
+
+        return $Html . '</ul>';
+}
+
+function RenderBreadcrumb($Gallery, $Album)
+{
+        $GalleryPath = NormalizeAlbumRelativePath($Gallery);
+        $AlbumPath = NormalizeAlbumRelativePath(($Album !== '') ? $Album : $Gallery);
+        $Html = '<nav class="breadcrumb" aria-label="Fil d\'Ariane"><a href="index.php">Accueil</a>';
+        $Html .= '<a href="' . EscapeHtml(GetAlbumUrl($Gallery)) . '">' . EscapeHtml(GetGalleryLabel(basename($GalleryPath))) . '</a>';
+        $Current = $GalleryPath;
+        $Rest = trim(substr($AlbumPath, strlen($GalleryPath)), '/');
+
+        if ($Rest !== '')
+        {
+                foreach (explode('/', $Rest) as $Segment)
+                {
+                        $Current .= '/' . $Segment;
+                        $Html .= '<a href="' . EscapeHtml(GetAlbumUrl($Gallery, './' . $Current)) . '">' . EscapeHtml($Segment) . '</a>';
+                }
+        }
+
+        return $Html . '</nav>';
+}
+
+/*
+ * Page d'un album : fil d'Ariane, introduction, sous-albums, puis grille
+ * des photos et vidéos lue dans la fiche album.json du cache.
+ */
+function RenderAlbum($Gallery, $Album)
+{
+        $AlbumPath = ($Album !== '') ? $Album : $Gallery;
+        $ResolvedPath = ResolveGalleryDirectoryPath($AlbumPath);
+
+        if ($ResolvedPath === NULL)
+        {
+                return '<p class="notice">Pas d\'images.</p>';
+        }
+
+        $Title = ($AlbumPath === $Gallery) ? GetGalleryLabel(basename($ResolvedPath['absolute'])) : basename($ResolvedPath['absolute']);
         $Legends = LoadAlbumLegends($ResolvedPath['absolute']);
         $Manifest = LoadAlbumManifest($ResolvedPath['relative']);
-        $Rows = '';
+        $SubAlbums = ListSubAlbums($ResolvedPath['relative']);
+
+        $Html = RenderBreadcrumb($Gallery, $Album);
+        $Html .= '<h1 class="album-title">' . EscapeHtml($Title) . '</h1>';
 
         if ($Legends['intro'] !== '')
         {
-                $Rows .= '<div class="album-intro">' . FormatMediaText($Legends['intro']) . '</div><br>';
+                $Html .= '<p class="album-intro">' . FormatMediaText($Legends['intro']) . '</p>';
+        }
+
+        if (count($SubAlbums) > 0)
+        {
+                $Html .= RenderAlbumCards($Gallery, $SubAlbums);
         }
 
         if ($Manifest === NULL)
         {
-                return $Rows . '<p>Cet album est en cours de pr&eacute;paration, revenez dans quelques minutes.</p>';
+                return $Html . '<p class="notice">Cet album est en cours de préparation, revenez dans quelques minutes.</p>';
         }
 
         $Items = $Manifest['items'];
 
         if (count($Items) === 0)
         {
-                return $Rows . '<p>Pas de photos ni de vid&eacute;os dans cet album.</p>';
+                if (count($SubAlbums) === 0)
+                {
+                        $Html .= '<p class="notice">Pas de photos ni de vidéos dans cet album.</p>';
+                }
+
+                return $Html;
         }
 
-        $RowSize = max(1, (int) $RowSize);
-
-        // Write the number of images
-        if (count($Items) > ($RowSize * 2))
-        {
-                $Rows .= count($Items) . ' photos et vid&eacute;os<br>';
-        }
-
-        $Rows .= '<table><tbody><tr>';
+        $Html .= '<p class="album-count">' . count($Items) . ' ' . ((count($Items) > 1) ? 'photos et vidéos' : 'élément') . '</p>';
+        $Html .= '<ul class="media-grid">';
+        $ViewerItems = array();
 
         foreach ($Items as $Index => $Item)
         {
-                list($ThumbWidth, $ThumbHeight) = FitMediaSize($Item['thumb_width'], $Item['thumb_height'], $SmallSize);
-                $EscapedName = htmlspecialchars($Item['name'], ENT_QUOTES, 'UTF-8');
-                $FullLink = $Item['original'];
-                $FullLabel = 'Qualite photo';
+                $Caption = GetMediaCaption($Item, $Legends);
+                $Label = ($Caption !== '') ? $Caption : pathinfo($Item['name'], PATHINFO_FILENAME);
+
+                $Html .= '<li><button type="button" class="media-thumb media-thumb--' . EscapeHtml($Item['kind']) . '" data-index="' . $Index . '" title="' . EscapeHtml($Label) . '">';
+                $Html .= '<img src="' . EscapeHtml($Item['thumb']) . '" width="' . (int) $Item['thumb_width'] . '" height="' . (int) $Item['thumb_height'] . '" alt="' . EscapeHtml($Label) . '" loading="lazy">';
 
                 if ($Item['kind'] === 'video')
                 {
-                        $FullLink = $Item['video'];
-                        $FullLabel = 'Video ' . FormatMediaDuration($Item['duration']);
-                }
-                else if (empty($Item['full']) === FALSE)
-                {
-                        $FullLink = $Item['full'];
+                        $Html .= '<span class="media-thumb__badge">▶ ' . FormatMediaDuration($Item['duration']) . '</span>';
                 }
 
-                $Caption = GetMediaCaption($Item, $Legends);
-
-                $Rows .= '<td align=center width=' . $ThumbWidth . ' height=' . $ThumbHeight . '>';
-                $Rows .= '<center>' . PHP_EOL;
-                $Rows .= '<IMG name="img_' . $Index . '" class="media-' . $Item['kind'] . '" Src="' . htmlspecialchars($Item['thumb'], ENT_QUOTES, 'UTF-8') . '" Width="' . $ThumbWidth . '" Height="' . $ThumbHeight . '" alt="' . $EscapedName . '" loading="lazy" onClick="DisplaySnapshot(Medias[' . ($Index + 1) . ']);" >';
-                $Rows .= '<br>' . htmlspecialchars(pathinfo($Item['name'], PATHINFO_FILENAME), ENT_QUOTES, 'UTF-8') . '<br>' . PHP_EOL;
-                $Rows .= '<A Href="' . htmlspecialchars($FullLink, ENT_QUOTES, 'UTF-8') . '" Target="_blank"><small><I>(' . $FullLabel . ')</I></small></A>';
-                $Rows .= '</center>';
+                $Html .= '</button>';
 
                 if ($Caption !== '')
                 {
-                        $Rows .= '<br>' . FormatMediaText($Caption);
+                        $Html .= '<p class="media-caption">' . EscapeHtml($Caption) . '</p>';
                 }
 
-                $Rows .= '</td>';
-
-                // Verify if the row is over
-                if (((($Index + 1) % $RowSize) === 0) && (($Index + 1) < count($Items)))
-                {
-                        $Rows .= '</tr><tr>';
-                }
+                $Html .= '</li>';
+                $ViewerItems[] = GetViewerItem($Item, $Caption);
         }
 
-        $Rows .= '</tr></tbody></table>';
+        $Html .= '</ul>';
+        $Html .= '<script type="application/json" id="album-media">'
+                . json_encode($ViewerItems, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP)
+                . '</script>';
 
-        return $Rows;
+        return $Html;
+}
+
+// Ce dont la visionneuse (script/viewer.js) a besoin pour un média
+function GetViewerItem($Item, $Caption)
+{
+        $Original = empty($Item['full']) ? $Item['original'] : $Item['full'];
+
+        if ($Item['kind'] === 'video')
+        {
+                return array(
+                        'kind' => 'video',
+                        'name' => $Item['name'],
+                        'src' => $Item['video'],
+                        'poster' => $Item['preview'],
+                        'original' => $Item['video'],
+                        'width' => (int) $Item['width'],
+                        'height' => (int) $Item['height'],
+                        'caption' => $Caption,
+                        'taken' => $Item['taken']
+                );
+        }
+
+        return array(
+                'kind' => 'image',
+                'name' => $Item['name'],
+                'src' => empty($Item['preview']) ? $Item['original'] : $Item['preview'],
+                'original' => $Original,
+                'width' => (int) $Item['width'],
+                'height' => (int) $Item['height'],
+                'caption' => $Caption,
+                'taken' => $Item['taken']
+        );
 }
 
 function BuildGalleryTree($Path)
@@ -510,72 +711,4 @@ function AddOptGroupGallery($Path, &$NbLine, $CurrentDiaporama = '')
         return $Str;
 }
 
-// Liste des médias de l'album pour la visionneuse (script/script.js)
-function GetJSListOFImage($Path)
-{
-        $NbMedia = 0;
-        $NbImage = 0;
-
-        $Str = 'var View = new Array();'.PHP_EOL;
-        $Str .= 'var Medias = new Array();'.PHP_EOL;
-        $Str .= 'var NbImage = 0;'.PHP_EOL;
-        $Str .= 'var NbMedia = 0;'.PHP_EOL;
-
-        $ResolvedPath = ResolveGalleryDirectoryPath($Path);
-
-        if ($ResolvedPath === NULL)
-        {
-                return $Str;
-        }
-
-        $Manifest = LoadAlbumManifest($ResolvedPath['relative']);
-
-        if ($Manifest === NULL)
-        {
-                return $Str;
-        }
-
-        $Legends = LoadAlbumLegends($ResolvedPath['absolute']);
-        $JsonOptions = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
-
-        foreach ($Manifest['items'] as $Item)
-        {
-                $NbMedia++;
-                list($Width, $Height) = FitMediaSize($Item['width'], $Item['height'], K_MIDDLESIZE);
-
-                if ($Item['kind'] === 'video')
-                {
-                        $Source = $Item['video'];
-                        $Middle = $Item['preview'];
-                        $Type = 'video/mp4';
-                }
-                else
-                {
-                        $NbImage++;
-                        $Source = empty($Item['full']) ? $Item['original'] : $Item['full'];
-                        $Middle = empty($Item['preview']) ? $Item['original'] : $Item['preview'];
-                        $Type = $Item['mime'];
-                }
-
-                $Arguments = array(
-                        $Item['name'],
-                        $Source,
-                        $Middle,
-                        FormatMediaText(GetMediaCaption($Item, $Legends)),
-                        $Width,
-                        $Height,
-                        $Type
-                );
-
-                $Str .= 'Medias[' . $NbMedia . '] = new media(' . implode(',', array_map(function ($Value) use ($JsonOptions)
-                {
-                        return json_encode($Value, $JsonOptions);
-                }, $Arguments)) . ');' . PHP_EOL;
-        }
-
-        $Str .= 'NbImage='. $NbImage .';'.PHP_EOL;
-        $Str .= 'NbMedia='. $NbMedia .';'.PHP_EOL;
-
-        return $Str;
-}
 ?>

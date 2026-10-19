@@ -1,5 +1,2 @@
-<center>
-<font  color="#ffffff" size="6">Galerie photos de famille</font><hr>
-<font  color="#ffffff" >Bonjour nous sommes le : <?php echo date("d-m-Y"); ?></font>
-</center>
-
+  <a class="site-title" href="index.php">Galerie photos de famille</a>
+  <p class="site-date">Bonjour, nous sommes le <?php echo date('d-m-Y'); ?></p>

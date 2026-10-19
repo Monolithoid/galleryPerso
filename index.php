@@ -1,77 +1,77 @@
 <?php
 ob_start();
 
-if (empty($_GET["resolution"]))
-	define("K_NBIMAGEBYROW", 6);
-else
-{
-	$resolution = explode('x', $_GET["resolution"]);
-	define("K_NBIMAGEBYROW", (($resolution[0] - 300) / 110));
-}
-
-define("K_SMALLSIZE",100);
-define("K_MIDDLESIZE",800);
-define("K_IMAGESIZE",600);
-
-//ini_set( "include_path", "/var/www/html/");
 require 'functions.php';
 
+$Selection = ResolveGallerySelection(
+        isset($_GET['Gallery']) ? $_GET['Gallery'] : NULL,
+        isset($_GET['Diaporama']) ? $_GET['Diaporama'] : NULL
+);
 
+// Un album sans galerie : la galerie est le premier dossier de son chemin
+if (($Selection['invalid'] === FALSE) && ($Selection['gallery'] === '') && ($Selection['album'] !== ''))
+{
+        $Segments = explode('/', NormalizeAlbumRelativePath($Selection['album']));
+        $Selection['gallery'] = './' . $Segments[0];
+}
+
+if ($Selection['invalid'] === TRUE)
+{
+        http_response_code(400);
+}
+
+$IsHome = ($Selection['invalid'] === FALSE) && ($Selection['gallery'] === '');
+$PageTitle = 'Galerie photos de famille';
+
+if ($IsHome === FALSE && $Selection['invalid'] === FALSE)
+{
+        $CurrentPath = ($Selection['album'] !== '') ? $Selection['album'] : $Selection['gallery'];
+        $CurrentName = ($CurrentPath === $Selection['gallery']) ? GetGalleryLabel(basename(NormalizeAlbumRelativePath($CurrentPath))) : basename($CurrentPath);
+        $PageTitle = $CurrentName . ' · ' . $PageTitle;
+}
 ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html lang="fr-fr">
+<!DOCTYPE html>
+<html lang="fr">
 <head>
-  <meta content="text/html; charset=UTF-8" http-equiv="content-type">
-  <script type="text/javascript" src="script/jquery.min.js"></script>
-  <script type="text/javascript" src="script/jquery.easing.1.3.js"></script>
-  <script type="text/javascript" src="script/jQueryRotate.2.2.js"></script>
-  <script type='text/javascript' src='script/script.js'></script>
-  <link rel="stylesheet" href="css/style.css" />
-  <title>Galerie photos de famille</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#375D81">
+  <title><?php echo EscapeHtml($PageTitle); ?></title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="favicon.ico">
 </head>
-<body>
-<!-- Start Snapshot -->
-<div id="next" onClick="imagechange(1);"></div>
-<div id="previous" onClick="imagechange((-1));"></div>
-<div id="right" onClick="imagerotation(90);"></div>
-<div id="left" onClick="imagerotation((-90));"></div>
-<div id="close" onClick="DisplaySnapshot(null);"></div>
-<div id="zoom" onClick="window.open(Medias[currentimage].src);return false;"></div>
-<div id="legend" ></div>
-<div class="snapshot" id="snapshot"></div>
-<!-- Start Content -->
-<div class="page">
-	<div class="content">
-		<div class="header">
-			<?php
-			require 'header.php';
-			?>
-		</div>
-		<div class="menu">
-			<?php
-			if ( (empty($_GET['Gallery']))
-				&& (empty($_GET['Diaporama'])) )
-				require 'menu.php';
-			else
-				require 'Gallery.php';
-			?>
-		</div>
-		<div class="main">
-			<?php
-			if (empty($_GET['Diaporama']))
-				require 'main.php';
-			else
-				require 'Diaporama.php';
-			?>
-		</div>
-	</div>
-<!--
-	<div class="footer">
-		<?php
-		require 'footer.php';
-		?>
-	</div>
--->
+<body class="<?php echo $IsHome ? 'page-home' : 'page-album'; ?>">
+<header class="site-header">
+<?php require 'header.php'; ?>
+<?php if ($IsHome === FALSE): ?>
+  <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="site-nav">Albums</button>
+<?php endif; ?>
+</header>
+<div class="layout">
+<?php if ($IsHome === FALSE): ?>
+  <aside class="site-nav" id="site-nav">
+<?php require 'Gallery.php'; ?>
+  </aside>
+<?php endif; ?>
+  <main class="site-main">
+<?php
+if ($Selection['invalid'] === TRUE)
+{
+        echo '<div class="error-message">La galerie demandée est invalide.</div>';
+        echo '<p><a href="index.php">Retour à l\'accueil</a></p>';
+}
+else if ($IsHome === TRUE)
+{
+        require 'main.php';
+}
+else
+{
+        echo RenderAlbum($Selection['gallery'], $Selection['album']);
+}
+?>
+  </main>
 </div>
+<?php require 'footer.php'; ?>
+<script src="script/viewer.js" defer></script>
 </body>
 </html>

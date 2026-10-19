@@ -1,5 +1,17 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteCond %{HTTPS} off
-  RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+  # Hors Docker : le serveur Apache gère lui-même le HTTPS
+  <IfDefine !SITEIMAGEPERSO_DOCKER>
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+  </IfDefine>
+
+  # Dans Docker : seulement avec SITEIMAGEPERSO_FORCE_HTTPS=1, derrière un
+  # reverse proxy qui gère le certificat et transmet X-Forwarded-Proto
+  <IfDefine SITEIMAGEPERSO_FORCE_HTTPS_1>
+    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+  </IfDefine>
 </IfModule>
