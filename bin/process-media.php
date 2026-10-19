@@ -259,7 +259,7 @@ function ProbeVideo($SourcePath)
 {
         $Output = '';
 
-        if (RunCommand(array('ffprobe', '-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', $SourcePath), $Output) !== 0)
+        if (RunCommand(array('ffprobe', '-v', 'error', '-threads', '1', '-print_format', 'json', '-show_format', '-show_streams', $SourcePath), $Output) !== 0)
         {
                 return NULL;
         }
@@ -405,8 +405,8 @@ function ProcessVideo($SourcePath, $CacheDirectory, $AlbumCacheUrl, $AlbumSource
         $PosterPath = $CacheDirectory . '/' . $Name . '.poster.jpg';
         $SeekSeconds = ($Probe['duration'] > 2) ? 1 : 0;
 
-        if ((RunCommand(array('ffmpeg', '-nostdin', '-y', '-v', 'error', '-ss', (string) $SeekSeconds, '-i', $SourcePath, '-frames:v', '1', '-q:v', '3', $PosterPath)) !== 0)
-                && (RunCommand(array('ffmpeg', '-nostdin', '-y', '-v', 'error', '-i', $SourcePath, '-frames:v', '1', '-q:v', '3', $PosterPath)) !== 0))
+        if ((RunCommand(array('ffmpeg', '-nostdin', '-y', '-v', 'error', '-threads', GetFfmpegThreads(), '-ss', (string) $SeekSeconds, '-i', $SourcePath, '-frames:v', '1', '-q:v', '3', $PosterPath)) !== 0)
+                && (RunCommand(array('ffmpeg', '-nostdin', '-y', '-v', 'error', '-threads', GetFfmpegThreads(), '-i', $SourcePath, '-frames:v', '1', '-q:v', '3', $PosterPath)) !== 0))
         {
                 return NULL;
         }

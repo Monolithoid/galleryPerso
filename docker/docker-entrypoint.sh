@@ -108,6 +108,13 @@ start_media_processor() {
 # Nombre maximal de processus Apache (voir docker/apache/site.conf)
 export SITEIMAGEPERSO_MAX_WORKERS="${SITEIMAGEPERSO_MAX_WORKERS:-10}"
 
+# Redirection vers HTTPS (voir .htaccess) : 1 seulement derrière un reverse proxy HTTPS
+if [ "${SITEIMAGEPERSO_FORCE_HTTPS:-}" = "1" ]; then
+    export SITEIMAGEPERSO_FORCE_HTTPS=1
+else
+    export SITEIMAGEPERSO_FORCE_HTTPS=0
+fi
+
 if [ "${SITEIMAGEPERSO_DISABLE_PROCESSOR:-}" = "" ]; then
     start_media_processor
 fi

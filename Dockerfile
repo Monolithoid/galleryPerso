@@ -33,7 +33,10 @@ COPY docker/apache/site.conf /etc/apache2/conf.d/siteimageperso.conf
 WORKDIR /var/www/html
 
 COPY . /var/www/html
+# Fichiers de développement et exemples de configuration : rien à servir
 RUN rm -rf /var/www/html/docker \
+    /var/www/html/tests \
+    /var/www/html/apache2 \
     /var/www/html/Dockerfile \
     /var/www/html/docker-compose.yml \
     /var/www/html/docker-compose.yaml \

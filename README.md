@@ -99,7 +99,8 @@ Un environnement Docker est fourni pour simplifier la mise en place du site avec
 
 ### Notes complémentaires
 - Les répertoires `GalleryPhotos/` et `GalleryCreative/` présents dans ce dépôt servent de points de montage par défaut. Ils restent vides grâce aux `.gitignore` internes afin d’éviter d’ajouter les médias au dépôt.
-- Mémoire : au repos, le conteneur occupe environ 50 Mo. Le pic vient de la conversion d'une vidéo (environ 300 Mo en 1080p avec `SITEIMAGEPERSO_FFMPEG_THREADS=2`, la valeur par défaut ; 1 fil réduit encore la mémoire mais allonge la conversion). Apache est limité à `SITEIMAGEPERSO_MAX_WORKERS` processus (10 par défaut, au lieu de 150).
+- Mémoire : au repos, le conteneur occupe environ 50 Mo. Le pic vient de la conversion d'une vidéo (environ 300 Mo en 1080p avec `SITEIMAGEPERSO_FFMPEG_THREADS=2`, la valeur par défaut ; 1 fil réduit encore la mémoire mais allonge la conversion). Apache est limité à `SITEIMAGEPERSO_MAX_WORKERS` processus (10 par défaut, au lieu de 150). Chaque connexion ouverte, vidéo en cours de lecture comprise, occupe un processus : augmentez cette valeur si plusieurs personnes regardent des vidéos en même temps.
+- HTTPS : le conteneur sert du HTTP et ne redirige pas vers HTTPS. Derrière un reverse proxy qui gère le certificat et transmet l'en-tête `X-Forwarded-Proto`, mettez `SITEIMAGEPERSO_FORCE_HTTPS=1` pour rediriger les visiteurs arrivés en HTTP. Hors Docker, `.htaccess` redirige toujours vers HTTPS.
 - Le script d’entrée du conteneur prépare le dossier du cache et lance le traitement des médias en arrière-plan (désactivable avec `SITEIMAGEPERSO_DISABLE_PROCESSOR=1`). Son journal est visible avec `docker compose logs -f`.
 
 ## Tests
