@@ -119,6 +119,8 @@ Une fois connecté, l’adresse et un lien « Déconnexion » s’affichent en h
 - **Caddy** : voir `caddy/Caddyfile.example` (une ligne `reverse_proxy 127.0.0.1:8080`). Si Caddy tourne lui-même dans Docker, le plus simple est de déclarer la galerie et sa connexion Google directement dans le docker-compose de Caddy : voir `caddy/compose-avec-caddy.example.yml` (réglages dans `environment:`, liste des adresses dans un fichier monté, relu sans redémarrage) et `reverse_proxy galerie-auth:4180` ;
 - **Apache** : voir `apache2/site-available/002-example.com-docker-le-ssl.conf` (modules `proxy`, `proxy_http` et `headers`).
 
+**Moteurs de recherche** : oauth2-proxy répond lui-même à `/robots.txt`, sans connexion, par `Disallow: /` (aucune page à explorer), et les deux exemples de reverse proxy ajoutent l’en-tête `X-Robots-Tag: noindex, nofollow` à toutes les réponses, page de connexion comprise. Vérification : `curl -sI https://<votre-domaine>/robots.txt` doit afficher cet en-tête, et `curl -s https://<votre-domaine>/robots.txt` le contenu `Disallow: /`. Le fichier `robots.txt` du dépôt dit la même chose, pour le cas où le site serait publié sans la connexion Google.
+
 Le port du conteneur n’écoute que sur `127.0.0.1` (`SITEIMAGEPERSO_HTTP_BIND`) : on ne peut pas contourner la connexion en passant par le port 8080 depuis l’extérieur.
 
 **Test sur son ordinateur** : `SITEIMAGEPERSO_PUBLIC_URL=http://localhost:8080` et `SITEIMAGEPERSO_COOKIE_SECURE=false` dans `.env`, avec l’adresse de retour `localhost` déclarée chez Google.

@@ -6,6 +6,10 @@
 #   sudo systemctl reload caddy
 
 famille.example.com {
+	# Demande aux moteurs de recherche de ne rien indexer, pas même la
+	# page de connexion
+	header X-Robots-Tag "noindex, nofollow"
+
 	# Caddy installé sur le serveur : port SITEIMAGEPERSO_HTTP_PORT du fichier .env
 	reverse_proxy 127.0.0.1:8080
 
