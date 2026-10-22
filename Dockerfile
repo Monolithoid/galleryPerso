@@ -37,6 +37,7 @@ COPY . /var/www/html
 RUN rm -rf /var/www/html/docker \
     /var/www/html/tests \
     /var/www/html/apache2 \
+    /var/www/html/caddy \
     /var/www/html/Dockerfile \
     /var/www/html/docker-compose.yml \
     /var/www/html/docker-compose.yaml \
