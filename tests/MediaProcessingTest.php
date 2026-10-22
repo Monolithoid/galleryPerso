@@ -148,6 +148,37 @@ try
         file_put_contents($album . '/pas-une-image.jpg', 'texte');
         assertSameValue(NULL, DetectMediaKind($album . '/pas-une-image.jpg')['kind'], 'Un faux .jpg n\'est pas une image');
 
+        // Liste des médias en erreur : une vidéo tronquée y figure avec sa raison
+        if (commandExists('ffmpeg'))
+        {
+                $errorAlbum = $galleryRoot . '/Abimes';
+                $reportDirectory = $cacheRoot . '-journal';
+                mkdir($errorAlbum, 0777, TRUE);
+                mkdir($reportDirectory, 0777, TRUE);
+                shell_exec('ffmpeg -v error -f lavfi -i testsrc=size=320x240:rate=25 -t 2 -c:v libx264 -pix_fmt yuv420p ' . escapeshellarg($errorAlbum . '/coupee.mp4'));
+                $truncated = substr(file_get_contents($errorAlbum . '/coupee.mp4'), 0, 2000);
+                file_put_contents($errorAlbum . '/coupee.mp4', $truncated);
+                touch($errorAlbum . '/coupee.mp4', time() - 60);
+                $errorEnvironment = array(
+                        'PATH' => getenv('PATH'),
+                        'SITEIMAGEPERSO_MEDIA_BASE' => $projectRoot,
+                        'SITEIMAGEPERSO_GALLERY_ROOTS' => $galleryName,
+                        'SITEIMAGEPERSO_CACHE_DIR' => $cacheRoot,
+                        'SITEIMAGEPERSO_ERROR_REPORT' => $reportDirectory . '/medias-en-erreur.txt'
+                );
+                runProcessor($projectRoot, $errorEnvironment);
+                $report = (string) @file_get_contents($reportDirectory . '/medias-en-erreur.txt');
+                assertTrueValue(preg_match('#^\d{4}-\d{2}-\d{2} \d{2}:\d{2} \S+ \| ' . preg_quote($galleryName, '#') . '/Abimes/coupee\.mp4 \| \S#m', $report) === 1, 'La vidéo abîmée est dans la liste des erreurs');
+                assertTrueValue(strpos($report, $errorAlbum) === FALSE, 'La raison ne contient pas le chemin complet');
+
+                // Retirée de la liste une fois le fichier supprimé
+                unlink($errorAlbum . '/coupee.mp4');
+                runProcessor($projectRoot, $errorEnvironment);
+                assertTrueValue(strpos(file_get_contents($reportDirectory . '/medias-en-erreur.txt'), 'Aucun média en erreur.') !== FALSE, 'La liste se vide quand le fichier disparaît');
+                removeDirectoryRecursively($errorAlbum);
+                removeDirectoryRecursively($reportDirectory);
+        }
+
         if (!commandExists('vipsthumbnail'))
         {
                 echo 'vipsthumbnail absent : tests de traitement ignorés.' . PHP_EOL;

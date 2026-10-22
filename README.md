@@ -35,6 +35,12 @@ Un petit site familial — volontairement old school — pour naviguer dans des 
 
 Tout est rangé dans le cache (`cache/` par défaut), qui reproduit l'arborescence des galeries. **Les originaux ne sont jamais modifiés** et rien n'est écrit dans les dossiers d'albums. Un fichier déjà traité et inchangé n'est pas retraité ; un fichier supprimé disparaît du cache au passage suivant. Le cache peut être effacé sans risque : il se reconstruit tout seul.
 
+**Médias en erreur** : un fichier que le traitement n'arrive pas à préparer (photo ou vidéo abîmée, format inconnu de vips ou ffmpeg) n'apparaît pas sur le site. Il est listé, avec la date de l'échec et la raison, dans `journal/medias-en-erreur.txt` du dossier de configuration (`SITEIMAGEPERSO_CONFIG`, monté sur `/config/journal` dans le conteneur du site ; autre emplacement possible avec `SITEIMAGEPERSO_ERROR_REPORT`). La liste est réécrite à chaque passage : un fichier remplacé, corrigé ou supprimé en sort tout seul, et elle indique « Aucun média en erreur. » quand tout va bien. Un fichier en échec n'est retenté que s'il change. Exemple de ligne :
+
+```
+2026-10-22 13:05 UTC | GalleryPhotos/2024/Noël/clip.mp4 | vidéo illisible par ffprobe : moov atom not found
+```
+
 Lancement à la main (hors Docker) : `php bin/process-media.php --once -v`. Outils nécessaires : `vipsthumbnail` avec la prise en charge HEIF (paquets `vips-tools` et `vips-heif` sous Alpine, `libvips-tools` et `libheif-plugin-libde265` sous Debian/Ubuntu), `ffmpeg` et `ffprobe`.
 
 ### Légendes

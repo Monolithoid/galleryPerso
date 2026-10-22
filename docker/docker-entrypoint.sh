@@ -79,6 +79,11 @@ initialize_gallery_directory "/var/www/html/GalleryPhotos" "$WEB_OWNER"
 initialize_gallery_directory "/var/www/html/GalleryCreative" "$WEB_OWNER"
 initialize_gallery_directory "/var/www/html/cache" "$WEB_OWNER"
 
+# Liste des médias en erreur (voir bin/process-media.php), seulement si le dossier est monté
+if [ -d /config/journal ]; then
+    assign_owner "/config/journal" "$WEB_OWNER"
+fi
+
 # su-exec sur Alpine, setpriv ailleurs
 run_as_web_user() {
     if command -v su-exec >/dev/null 2>&1; then

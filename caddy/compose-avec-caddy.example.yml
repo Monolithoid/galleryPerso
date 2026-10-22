@@ -21,6 +21,10 @@ services:
       - /var/www/famille.example.com/GalleryCreative:/var/www/html/GalleryCreative
       # Vignettes, aperçus et vidéos converties : peut être effacé, il se reconstruit
       - /srv/apps/galerie/cache:/var/www/html/cache
+      # Liste des médias en erreur de traitement (medias-en-erreur.txt).
+      # Seul ce sous-dossier de la configuration est accessible en écriture :
+      # le site ne peut pas toucher à emails.txt
+      - /srv/apps/galerie/config/journal:/config/journal
     networks: [web]
     restart: unless-stopped
 

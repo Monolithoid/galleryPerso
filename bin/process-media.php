@@ -12,6 +12,10 @@
  *                       pas lisible par les navigateurs
  *   - album.json        fiche de l'album lue par le site
  *
+ * La liste des médias en erreur est réécrite à chaque passage dans
+ * SITEIMAGEPERSO_ERROR_REPORT (/config/journal/medias-en-erreur.txt par
+ * défaut), si son dossier existe.
+ *
  * Les originaux ne sont jamais modifiés. Un fichier déjà traité et
  * inchangé (taille et date) n'est pas retraité.
  *
@@ -52,7 +56,36 @@ function DebugLine($Message)
         }
 }
 
-function RunCommand($Arguments, &$Output = NULL)
+// Raison du dernier échec, reprise dans la liste des médias en erreur
+$FailureReason = '';
+
+function NoteFailure($Reason)
+{
+        global $FailureReason;
+
+        $FailureReason = $Reason;
+}
+
+// Première ligne utile de la sortie d'erreur d'un outil, sans le chemin du fichier
+function SummarizeToolError($Errors, $SourcePath)
+{
+        $Errors = str_replace($SourcePath, basename($SourcePath), (string) $Errors);
+
+        foreach (preg_split('/\R/', $Errors) as $Line)
+        {
+                // « [mov,mp4,m4a @ 0x55d0c8e2] moov atom not found » : garde le message
+                $Line = trim(preg_replace('/^\[[^\]]* @ 0x[0-9a-f]+\]\s*/', '', $Line));
+
+                if ($Line !== '')
+                {
+                        return mb_strimwidth($Line, 0, 200, '…');
+                }
+        }
+
+        return '';
+}
+
+function RunCommand($Arguments, &$Output = NULL, &$Errors = NULL)
 {
         // Sans shell et en locale UTF-8 : sinon les noms accentués
         // (« Noël », « Vacances à la mer ») sont refusés ou abîmés
@@ -65,6 +98,7 @@ function RunCommand($Arguments, &$Output = NULL)
         if (is_resource($Process) === FALSE)
         {
                 $Output = '';
+                $Errors = $Arguments[0] . ' introuvable';
 
                 return 127;
         }
@@ -114,9 +148,13 @@ function CreateJpegVersion($SourcePath, $DestinationPath, $Size)
                 $Arguments = array('vips', 'autorot', $SourcePath, $Target);
         }
 
-        if ((RunCommand($Arguments) !== 0) || (is_file($TemporaryPath) === FALSE))
+        $Errors = '';
+
+        if ((RunCommand($Arguments, $Output, $Errors) !== 0) || (is_file($TemporaryPath) === FALSE))
         {
                 @unlink($TemporaryPath);
+                $Detail = SummarizeToolError($Errors, $SourcePath);
+                NoteFailure('image illisible par vips' . (($Detail !== '') ? ' : ' . $Detail : ''));
 
                 return FALSE;
         }
@@ -258,9 +296,13 @@ function ProcessImage($SourcePath, $CacheDirectory, $AlbumCacheUrl, $Name, $Mime
 function ProbeVideo($SourcePath)
 {
         $Output = '';
+        $Errors = '';
 
-        if (RunCommand(array('ffprobe', '-v', 'error', '-threads', '1', '-print_format', 'json', '-show_format', '-show_streams', $SourcePath), $Output) !== 0)
+        if (RunCommand(array('ffprobe', '-v', 'error', '-threads', '1', '-print_format', 'json', '-show_format', '-show_streams', $SourcePath), $Output, $Errors) !== 0)
         {
+                $Detail = SummarizeToolError($Errors, $SourcePath);
+                NoteFailure('vidéo illisible par ffprobe' . (($Detail !== '') ? ' : ' . $Detail : ''));
+
                 return NULL;
         }
 
@@ -268,6 +310,8 @@ function ProbeVideo($SourcePath)
 
         if (is_array($Probe) === FALSE)
         {
+                NoteFailure('vidéo illisible par ffprobe');
+
                 return NULL;
         }
 
@@ -291,6 +335,8 @@ function ProbeVideo($SourcePath)
 
         if ($Video === NULL)
         {
+                NoteFailure('aucune image vidéo dans le fichier');
+
                 return NULL;
         }
 
@@ -380,10 +426,13 @@ function TranscodeVideo($SourcePath, $DestinationPath, $HasAudio)
         }
 
         $Arguments[] = $TemporaryPath;
+        $Errors = '';
 
-        if ((RunCommand($Arguments) !== 0) || (is_file($TemporaryPath) === FALSE))
+        if ((RunCommand($Arguments, $Output, $Errors) !== 0) || (is_file($TemporaryPath) === FALSE))
         {
                 @unlink($TemporaryPath);
+                $Detail = SummarizeToolError($Errors, $SourcePath);
+                NoteFailure('conversion en MP4 impossible' . (($Detail !== '') ? ' : ' . $Detail : ''));
 
                 return FALSE;
         }
@@ -406,8 +455,11 @@ function ProcessVideo($SourcePath, $CacheDirectory, $AlbumCacheUrl, $AlbumSource
         $SeekSeconds = ($Probe['duration'] > 2) ? 1 : 0;
 
         if ((RunCommand(array('ffmpeg', '-nostdin', '-y', '-v', 'error', '-threads', GetFfmpegThreads(), '-ss', (string) $SeekSeconds, '-i', $SourcePath, '-frames:v', '1', '-q:v', '3', $PosterPath)) !== 0)
-                && (RunCommand(array('ffmpeg', '-nostdin', '-y', '-v', 'error', '-threads', GetFfmpegThreads(), '-i', $SourcePath, '-frames:v', '1', '-q:v', '3', $PosterPath)) !== 0))
+                && (RunCommand(array('ffmpeg', '-nostdin', '-y', '-v', 'error', '-threads', GetFfmpegThreads(), '-i', $SourcePath, '-frames:v', '1', '-q:v', '3', $PosterPath), $Output, $Errors) !== 0))
         {
+                $Detail = SummarizeToolError($Errors, $SourcePath);
+                NoteFailure('aucune image extraite de la vidéo' . (($Detail !== '') ? ' : ' . $Detail : ''));
+
                 return NULL;
         }
 
@@ -434,8 +486,6 @@ function ProcessVideo($SourcePath, $CacheDirectory, $AlbumCacheUrl, $AlbumSource
 
                 if (TranscodeVideo($SourcePath, $CacheDirectory . '/' . $TranscodedName, $Probe['audio_codec'] !== NULL) === FALSE)
                 {
-                        LogLine('Conversion impossible : ' . $SourcePath);
-
                         return NULL;
                 }
 
@@ -507,6 +557,8 @@ function SaveManifest($CacheDirectory, $RelativePath, $Items, $Failed)
 
 function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
 {
+        global $FailureReason;
+
         $CacheDirectory = GetAlbumCacheDirectory($RelativePath);
         $AlbumCacheUrl = GetAlbumCacheUrl($RelativePath);
         $AlbumSourceUrl = './' . EncodeUrlPath($RelativePath);
@@ -583,6 +635,7 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
                         && ($PreviousFailed[$Entry]['mtime'] === $ModifiedAt))
                 {
                         $Failed[$Entry] = $PreviousFailed[$Entry];
+                        RecordFailure($Statistics, $RelativePath, $Entry, $Failed[$Entry]);
                         continue;
                 }
 
@@ -602,6 +655,7 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
 
                 EnsureDirectory($CacheDirectory);
                 DebugLine('Traitement de ' . $EntryPath . ' (' . $Detection['mime'] . ')');
+                NoteFailure('format non pris en charge');
 
                 if ($Detection['kind'] === 'image')
                 {
@@ -614,8 +668,14 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
 
                 if ($Item === NULL)
                 {
-                        LogLine('Format non pris en charge ou fichier illisible : ' . $EntryPath);
-                        $Failed[$Entry] = array('size' => $Size, 'mtime' => $ModifiedAt);
+                        LogLine('Échec du traitement de ' . $EntryPath . ' : ' . $FailureReason);
+                        $Failed[$Entry] = array(
+                                'size' => $Size,
+                                'mtime' => $ModifiedAt,
+                                'reason' => $FailureReason,
+                                'date' => date('c')
+                        );
+                        RecordFailure($Statistics, $RelativePath, $Entry, $Failed[$Entry]);
                         $Changed = TRUE;
                         $Statistics['failed']++;
                         continue;
@@ -739,6 +799,76 @@ function RemoveCacheDirectory($Path)
         @rmdir($Resolved);
 }
 
+function RecordFailure(&$Statistics, $RelativePath, $Entry, $Failure)
+{
+        $Statistics['failures'][] = array(
+                'path' => $RelativePath . '/' . $Entry,
+                // Échecs enregistrés avant l'apparition de la liste : ni raison ni date
+                'reason' => isset($Failure['reason']) ? $Failure['reason'] : 'fichier illisible',
+                'date' => isset($Failure['date']) ? $Failure['date'] : NULL
+        );
+}
+
+function GetErrorReportPath()
+{
+        $Configured = getenv('SITEIMAGEPERSO_ERROR_REPORT');
+
+        if (($Configured === FALSE) || ($Configured === ''))
+        {
+                return '/config/journal/medias-en-erreur.txt';
+        }
+
+        return $Configured;
+}
+
+// Liste lisible des médias en erreur ; un fichier corrigé ou supprimé en sort au passage suivant
+function WriteErrorReport($Failures)
+{
+        $ReportPath = GetErrorReportPath();
+
+        if (is_dir(dirname($ReportPath)) === FALSE)
+        {
+                DebugLine('Pas de liste des médias en erreur : le dossier ' . dirname($ReportPath) . ' n\'existe pas.');
+
+                return;
+        }
+
+        usort($Failures, function ($Left, $Right)
+        {
+                return strnatcasecmp($Left['path'], $Right['path']);
+        });
+
+        $Content = '# Médias que le traitement n\'a pas pu préparer (ils n\'apparaissent pas sur le site).' . PHP_EOL
+                . '# Liste réécrite à chaque passage : un fichier remplacé, corrigé ou supprimé en sort tout seul.' . PHP_EOL
+                . '# Date du premier échec | fichier | raison' . PHP_EOL . PHP_EOL;
+
+        if (count($Failures) === 0)
+        {
+                $Content .= 'Aucun média en erreur.' . PHP_EOL;
+        }
+
+        foreach ($Failures as $Failure)
+        {
+                $Date = ($Failure['date'] !== NULL) ? date('Y-m-d H:i T', strtotime($Failure['date'])) : 'date inconnue';
+                $Content .= $Date . ' | ' . $Failure['path'] . ' | ' . $Failure['reason'] . PHP_EOL;
+        }
+
+        // Réécrit seulement si la liste change
+        if (is_file($ReportPath) && (file_get_contents($ReportPath) === $Content))
+        {
+                return;
+        }
+
+        if (@file_put_contents($ReportPath . '.tmp' . getmypid(), $Content) === FALSE)
+        {
+                LogLine('Impossible d\'écrire ' . $ReportPath . ' : vérifiez les droits du dossier.');
+
+                return;
+        }
+
+        rename($ReportPath . '.tmp' . getmypid(), $ReportPath);
+}
+
 function ProcessTree($AbsolutePath, $RelativePath, &$Statistics, $Depth = 0)
 {
         if ($Depth > 32)
@@ -757,7 +887,7 @@ function ProcessTree($AbsolutePath, $RelativePath, &$Statistics, $Depth = 0)
 
 function RunOnce()
 {
-        $Statistics = array('albums' => 0, 'processed' => 0, 'failed' => 0);
+        $Statistics = array('albums' => 0, 'processed' => 0, 'failed' => 0, 'failures' => array());
         $BaseDirectory = GetMediaBaseDirectory();
 
         foreach (GetGalleryRootNames() as $RootName)
@@ -769,6 +899,8 @@ function RunOnce()
                         ProcessTree($RootPath, $RootName, $Statistics);
                 }
         }
+
+        WriteErrorReport($Statistics['failures']);
 
         if (($Statistics['processed'] > 0) || ($Statistics['failed'] > 0))
         {
