@@ -41,8 +41,10 @@ services:
       OAUTH2_PROXY_UPSTREAMS: "http://siteimageperso:80/"
       # Une adresse par ligne, relu dès qu'il change
       OAUTH2_PROXY_AUTHENTICATED_EMAILS_FILE: /config/emails.txt
-      # Envoie directement vers Google, avec le choix du compte
-      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
+      # Page d'accueil avec un bouton « Se connecter avec Google »
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "false"
+      OAUTH2_PROXY_CUSTOM_TEMPLATES_DIR: /templates
+      # Google propose de choisir le compte à chaque connexion
       OAUTH2_PROXY_PROMPT: select_account
       OAUTH2_PROXY_COOKIE_NAME: _galerie_session
       OAUTH2_PROXY_COOKIE_EXPIRE: "${SITEIMAGEPERSO_SESSION_DURATION:-720h}"
@@ -50,9 +52,9 @@ services:
       # Derrière le reverse proxy HTTPS : lit X-Forwarded-Proto, X-Forwarded-Host…
       OAUTH2_PROXY_REVERSE_PROXY: "true"
       OAUTH2_PROXY_TRUSTED_PROXY_IPS: "127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
-      OAUTH2_PROXY_BANNER: "Galerie photos de famille"
       OAUTH2_PROXY_FOOTER: "-"
     volumes:
+      - "./oauth2-proxy:/templates:ro"
       # Configuration du site (emails.txt), hors du dépôt
       - "${SITEIMAGEPERSO_CONFIG:-./config}:/config:ro"
     restart: unless-stopped

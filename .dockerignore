@@ -10,3 +10,4 @@ cache
 .env.*
 config
 config.example
+oauth2-proxy

@@ -38,6 +38,7 @@ RUN rm -rf /var/www/html/docker \
     /var/www/html/tests \
     /var/www/html/apache2 \
     /var/www/html/caddy \
+    /var/www/html/oauth2-proxy \
     /var/www/html/config.example \
     /var/www/html/Dockerfile \
     /var/www/html/docker-compose.yml \
