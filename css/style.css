@@ -84,6 +84,25 @@ img
         opacity: 0.85;
 }
 
+.site-user
+{
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin: 0;
+        font-size: 0.85rem;
+}
+
+.site-user-email
+{
+        opacity: 0.85;
+}
+
+.site-user a
+{
+        color: #fff;
+}
+
 .nav-toggle
 {
         display: none;
@@ -533,9 +552,15 @@ body.viewer-open
                 text-overflow: ellipsis;
         }
 
-        .site-date
+        .site-date,
+        .site-user-email
         {
                 display: none;
+        }
+
+        .site-user
+        {
+                flex: 0 0 auto;
         }
 
         .nav-toggle
