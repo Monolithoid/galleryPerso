@@ -469,10 +469,11 @@ function RenderAlbum($Gallery, $Album)
 
                 $Html .= '<li><button type="button" class="media-thumb media-thumb--' . EscapeHtml($Item['kind']) . '" data-index="' . $Index . '" title="' . EscapeHtml($Label) . '">';
                 $Html .= '<img src="' . EscapeHtml($Item['thumb']) . '" width="' . (int) $Item['thumb_width'] . '" height="' . (int) $Item['thumb_height'] . '" alt="' . EscapeHtml($Label) . '" loading="lazy">';
+                $Html .= RenderMediaTypeIcon($Item['kind']);
 
                 if ($Item['kind'] === 'video')
                 {
-                        $Html .= '<span class="media-thumb__badge">▶ ' . FormatMediaDuration($Item['duration']) . '</span>';
+                        $Html .= '<span class="media-thumb__badge">' . FormatMediaDuration($Item['duration']) . '</span>';
                 }
 
                 $Html .= '</button>';
@@ -492,6 +493,25 @@ function RenderAlbum($Gallery, $Album)
                 . '</script>';
 
         return $Html;
+}
+
+// Pastille dans le coin d'une vignette : caméra pour une vidéo, photo pour une image
+function RenderMediaTypeIcon($Kind)
+{
+        if ($Kind === 'video')
+        {
+                $Label = 'Vidéo';
+                $Shape = '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10.5 22 7v10l-6-3.5z"/>';
+        }
+        else
+        {
+                $Label = 'Photo';
+                $Shape = '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="m21 16-5-5-9 9"/>';
+        }
+
+        return '<span class="media-thumb__type">'
+                . '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">' . $Shape . '</svg>'
+                . '<span class="visually-hidden">' . $Label . '</span></span>';
 }
 
 // Ce dont la visionneuse (script/viewer.js) a besoin pour un média
