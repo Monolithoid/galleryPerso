@@ -113,6 +113,8 @@ Le site n’est visible qu’après connexion avec un compte Google dont l’adr
 
 **Liste des adresses autorisées** : fichier `emails.txt` dans le dossier de configuration du site (`SITEIMAGEPERSO_CONFIG`, `./config` par défaut, monté en lecture seule dans le conteneur de connexion), une adresse par ligne ; les lignes qui commencent par `#` sont ignorées, majuscules et minuscules sont équivalentes. Exemple : `config.example/emails.txt`. Une modification est prise en compte immédiatement, sans redémarrer : une adresse retirée est refusée dès sa visite suivante. Une personne connectée mais absente de la liste reçoit une erreur 403. Le fichier doit exister et être lisible par tous (`chmod 644`), car oauth2-proxy ne tourne pas en root ; sinon le conteneur de connexion ne démarre pas.
 
+Les visiteurs non connectés arrivent sur une page d’accueil avec un bouton « Se connecter avec Google » ; une adresse absente de la liste voit une page « pas d’accès » avec un bouton pour changer de compte. Ces pages sont dans `oauth2-proxy/` (`sign_in.html`, `error.html`, modèles Go d’oauth2-proxy), monté dans le conteneur de connexion sur `/templates`.
+
 Une fois connecté, l’adresse et un lien « Déconnexion » s’affichent en haut à droite. Après une déconnexion, Google propose de choisir le compte, ce qui permet de changer de personne sur un ordinateur partagé.
 
 **HTTPS** : Google n’accepte une adresse de retour en `http` que pour `localhost`. Sur le serveur, un reverse proxy garde le certificat et transmet les requêtes au conteneur :

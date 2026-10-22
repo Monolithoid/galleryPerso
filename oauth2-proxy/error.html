@@ -1,0 +1,61 @@
+{{define "error.html"}}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Galerie photos de famille</title>
+  <style>
+    body
+    {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1rem;
+      background: #f4f6f9;
+      color: #1f2937;
+      font-family: "Outfit", system-ui, sans-serif;
+      text-align: center;
+    }
+
+    h1
+    {
+      margin: 0 0 0.5rem;
+      color: #375D81;
+      font-size: clamp(1.5rem, 6vw, 2.2rem);
+      font-weight: 500;
+    }
+
+    p
+    {
+      max-width: 32rem;
+      margin: 0 0 2rem;
+      color: #6b7280;
+    }
+
+    a
+    {
+      padding: 0.8rem 1.6rem;
+      border-radius: 10px;
+      background: #375D81;
+      color: #fff;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Galerie photos de famille</h1>
+{{ if eq .StatusCode 403 }}
+  <p>Ce compte Google n'a pas accès à la galerie. Si c'est une erreur, demandez à être ajouté à la liste, ou connectez-vous avec un autre compte.</p>
+  <a href="{{.ProxyPrefix}}/sign_out">Changer de compte</a>
+{{ else }}
+  <p>La connexion n'a pas abouti ({{.StatusCode}}). Vous pouvez réessayer.</p>
+  <a href="{{.ProxyPrefix}}/sign_in">Réessayer</a>
+{{ end }}
+</body>
+</html>
+{{end}}
