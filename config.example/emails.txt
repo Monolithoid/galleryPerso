@@ -1,0 +1,7 @@
+# Adresses Google autorisées à voir la galerie, une par ligne.
+# Copier ce dossier en dehors du dépôt (ou en ./config, ignoré par git)
+# et indiquer son chemin dans SITEIMAGEPERSO_CONFIG.
+# Les lignes qui commencent par # sont ignorées ; les changements sont
+# pris en compte sans redémarrer.
+prenom.nom@gmail.com
+autre.personne@exemple.fr

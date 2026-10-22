@@ -105,7 +105,7 @@ Le site n’est visible qu’après connexion avec un compte Google dont l’adr
 - `SITEIMAGEPERSO_COOKIE_SECRET` : 32 caractères aléatoires, obtenus avec `openssl rand -hex 16` ;
 - `SITEIMAGEPERSO_SESSION_DURATION` : durée avant de devoir se reconnecter (`720h`, 30 jours, par défaut).
 
-**Liste des adresses autorisées** : `SITEIMAGEPERSO_ALLOWED_EMAILS` dans `.env`, adresses séparées par des virgules (`alice@gmail.com,bob@gmail.com`), majuscules et minuscules équivalentes. Après une modification, `docker compose up -d` recrée le conteneur de connexion en quelques secondes ; les personnes déjà connectées le restent, sauf une adresse retirée, refusée dès sa visite suivante. Une personne connectée mais absente de la liste reçoit une erreur 403. Si la variable est vide, le conteneur de connexion refuse de démarrer.
+**Liste des adresses autorisées** : fichier `emails.txt` dans le dossier de configuration du site (`SITEIMAGEPERSO_CONFIG`, `./config` par défaut, monté en lecture seule dans le conteneur de connexion), une adresse par ligne ; les lignes qui commencent par `#` sont ignorées, majuscules et minuscules sont équivalentes. Exemple : `config.example/emails.txt`. Une modification est prise en compte immédiatement, sans redémarrer : une adresse retirée est refusée dès sa visite suivante. Une personne connectée mais absente de la liste reçoit une erreur 403. Le fichier doit exister et être lisible par tous (`chmod 644`), car oauth2-proxy ne tourne pas en root ; sinon le conteneur de connexion ne démarre pas.
 
 Une fois connecté, l’adresse et un lien « Déconnexion » s’affichent en haut à droite. Après une déconnexion, Google propose de choisir le compte, ce qui permet de changer de personne sur un ordinateur partagé.
 

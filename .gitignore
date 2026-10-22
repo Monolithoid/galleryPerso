@@ -21,3 +21,6 @@ cache/
 
 # Réglages propres au serveur (voir caddy/)
 docker-compose.override.yml
+
+# Configuration du site (adresses autorisées)
+/config/
