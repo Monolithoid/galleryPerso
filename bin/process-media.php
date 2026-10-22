@@ -799,14 +799,27 @@ function RemoveCacheDirectory($Path)
         @rmdir($Resolved);
 }
 
+// Médias en erreur au passage précédent, gardés dans la liste tant que le passage en cours ne les a pas revus
+$PreviousPassFailures = array();
+
 function RecordFailure(&$Statistics, $RelativePath, $Entry, $Failure)
 {
-        $Statistics['failures'][] = array(
-                'path' => $RelativePath . '/' . $Entry,
+        global $PreviousPassFailures;
+
+        $Path = $RelativePath . '/' . $Entry;
+        $Statistics['failures'][$Path] = array(
+                'path' => $Path,
                 // Échecs enregistrés avant l'apparition de la liste : ni raison ni date
                 'reason' => isset($Failure['reason']) ? $Failure['reason'] : 'fichier illisible',
                 'date' => isset($Failure['date']) ? $Failure['date'] : NULL
         );
+
+        // Le premier passage peut durer des heures (conversion des vidéos) : un nouvel échec
+        // apparaît tout de suite dans la liste, sans attendre la fin du passage
+        if (isset($PreviousPassFailures[$Path]) === FALSE)
+        {
+                WriteErrorReport(array_merge($PreviousPassFailures, $Statistics['failures']), TRUE);
+        }
 }
 
 function GetErrorReportPath()
@@ -822,7 +835,7 @@ function GetErrorReportPath()
 }
 
 // Liste lisible des médias en erreur ; un fichier corrigé ou supprimé en sort au passage suivant
-function WriteErrorReport($Failures)
+function WriteErrorReport($Failures, $InProgress = FALSE)
 {
         $ReportPath = GetErrorReportPath();
 
@@ -840,11 +853,18 @@ function WriteErrorReport($Failures)
 
         $Content = '# Médias que le traitement n\'a pas pu préparer (ils n\'apparaissent pas sur le site).' . PHP_EOL
                 . '# Liste réécrite à chaque passage : un fichier remplacé, corrigé ou supprimé en sort tout seul.' . PHP_EOL
-                . '# Date du premier échec | fichier | raison' . PHP_EOL . PHP_EOL;
+                . '# Date du premier échec | fichier | raison' . PHP_EOL;
+
+        if ($InProgress === TRUE)
+        {
+                $Content .= '# Passage en cours : la liste sera complète à la fin du passage.' . PHP_EOL;
+        }
+
+        $Content .= PHP_EOL;
 
         if (count($Failures) === 0)
         {
-                $Content .= 'Aucun média en erreur.' . PHP_EOL;
+                $Content .= ($InProgress === TRUE) ? 'Aucun média en erreur pour l\'instant.' . PHP_EOL : 'Aucun média en erreur.' . PHP_EOL;
         }
 
         foreach ($Failures as $Failure)
@@ -887,6 +907,8 @@ function ProcessTree($AbsolutePath, $RelativePath, &$Statistics, $Depth = 0)
 
 function RunOnce()
 {
+        global $PreviousPassFailures;
+
         $Statistics = array('albums' => 0, 'processed' => 0, 'failed' => 0, 'failures' => array());
         $BaseDirectory = GetMediaBaseDirectory();
 
@@ -901,6 +923,7 @@ function RunOnce()
         }
 
         WriteErrorReport($Statistics['failures']);
+        $PreviousPassFailures = $Statistics['failures'];
 
         if (($Statistics['processed'] > 0) || ($Statistics['failed'] > 0))
         {
@@ -919,6 +942,22 @@ if (($LockHandle === FALSE) || (flock($LockHandle, LOCK_EX | LOCK_NB) === FALSE)
 {
         LogLine('Un traitement est déjà en cours.');
         exit(0);
+}
+
+$ErrorReportPath = GetErrorReportPath();
+
+if (is_dir(dirname($ErrorReportPath)) === FALSE)
+{
+        LogLine('Pas de liste des médias en erreur : le dossier ' . dirname($ErrorReportPath) . ' n\'existe pas (volume non monté ?).');
+}
+else
+{
+        LogLine('Liste des médias en erreur : ' . $ErrorReportPath);
+
+        if (is_file($ErrorReportPath) === FALSE)
+        {
+                WriteErrorReport(array(), TRUE);
+        }
 }
 
 do
