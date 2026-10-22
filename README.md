@@ -89,13 +89,36 @@ Un environnement Docker est fourni pour simplifier la mise en place du site avec
 ### Préparation
 1. Copiez le fichier `.env.example` en `.env` puis adaptez les chemins `SITEIMAGEPERSO_GALLERY_PHOTOS` et `SITEIMAGEPERSO_GALLERY_CREATIVE` vers vos dossiers d’albums (par exemple un partage Samba monté localement), et `SITEIMAGEPERSO_CACHE` vers le dossier du cache.
 2. Vérifiez que les dossiers pointés existent et que l’utilisateur Docker pourra y écrire. À défaut, ils seront créés au démarrage du conteneur.
+3. Réglez la connexion Google (section suivante) : sans elle, le site ne s’affiche pas.
+
+### Connexion Google
+Le site n’est visible qu’après connexion avec un compte Google dont l’adresse figure dans une liste. C’est [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/), un second conteneur placé devant le site, qui s’en charge : le conteneur du site ne publie plus aucun port. Il occupe environ 20 Mo de mémoire.
+
+**Côté Google** (une seule fois), dans la [Google Cloud Console](https://console.cloud.google.com/) :
+1. Créez un projet (par exemple « Galerie famille »).
+2. *API et services > Écran de consentement OAuth* (ou *Google Auth Platform*) : type d’utilisateurs **Externe**, nom de l’application, adresse de contact. Les autorisations par défaut (`email`, `profile`, `openid`) suffisent. Publiez l’application (*En production*) : en mode *Test*, seuls les comptes déclarés comme testeurs chez Google peuvent se connecter. Ces autorisations de base ne demandent normalement pas de validation par Google.
+3. *Identifiants > Créer des identifiants > ID client OAuth* : type **Application Web**. Dans *URI de redirection autorisés*, ajoutez `https://<votre-domaine>/oauth2/callback` (et `http://localhost:8080/oauth2/callback` pour tester sur votre ordinateur).
+4. Recopiez l’ID client et le code secret dans `.env` (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`).
+
+**Dans `.env`** :
+- `SITEIMAGEPERSO_PUBLIC_URL` : l’adresse du site, sans `/` final (`https://famille.example.com`) ;
+- `SITEIMAGEPERSO_COOKIE_SECRET` : 32 caractères aléatoires, obtenus avec `openssl rand -hex 16` ;
+- `SITEIMAGEPERSO_SESSION_DURATION` : durée avant de devoir se reconnecter (`720h`, 30 jours, par défaut).
+
+**Liste des adresses autorisées** : copiez `auth/emails.example.txt` en `auth/emails.txt` et mettez-y une adresse par ligne. Ce fichier n’est pas suivi par git. Une modification est prise en compte immédiatement, sans redémarrer : une adresse retirée est déconnectée à sa visite suivante. Une personne connectée mais absente de la liste reçoit une erreur 403. Le fichier doit être lisible par tous (`chmod 644 auth/emails.txt`), car oauth2-proxy ne tourne pas en root.
+
+Une fois connecté, l’adresse et un lien « Déconnexion » s’affichent en haut à droite. Après une déconnexion, Google propose de choisir le compte, ce qui permet de changer de personne sur un ordinateur partagé.
+
+**HTTPS** : Google n’accepte une adresse de retour en `http` que pour `localhost`. Sur le serveur, l’Apache de l’hôte garde le certificat Let’s Encrypt et transmet les requêtes au conteneur ; voir `apache2/site-available/002-example.com-docker-le-ssl.conf` (modules `proxy`, `proxy_http` et `headers`). Le port du conteneur n’écoute que sur `127.0.0.1` (`SITEIMAGEPERSO_HTTP_BIND`) : on ne peut pas contourner la connexion en passant par le port 8080 depuis l’extérieur.
+
+**Test sur son ordinateur** : `SITEIMAGEPERSO_PUBLIC_URL=http://localhost:8080` et `SITEIMAGEPERSO_COOKIE_SECURE=false` dans `.env`, avec l’adresse de retour `localhost` déclarée chez Google.
 
 ### Construction et lancement
 1. Construisez l’image et démarrez le service :
    ```
    docker compose up --build -d
    ```
-2. Le site est accessible sur le port défini par `SITEIMAGEPERSO_HTTP_PORT` (8080 par défaut).
+2. Le site est accessible sur le port défini par `SITEIMAGEPERSO_HTTP_PORT` (8080 par défaut), sur `127.0.0.1` seulement, ou à l’adresse publique à travers l’Apache de l’hôte. Si la connexion ne s’affiche pas, `docker compose logs oauth2-proxy` indique le réglage manquant.
 
 ### Notes complémentaires
 - Les répertoires `GalleryPhotos/` et `GalleryCreative/` présents dans ce dépôt servent de points de montage par défaut. Ils restent vides grâce aux `.gitignore` internes afin d’éviter d’ajouter les médias au dépôt.
