@@ -1,17 +1,34 @@
 # La galerie dans le docker-compose qui contient déjà Caddy (et d'autres
-# services). Coller les deux services ci-dessous sous « services: » de ce
-# fichier, renseigner les chemins dans le .env placé à côté de ce
-# docker-compose (modèle : caddy/galerie.env.example), adapter les valeurs,
-# puis :
+# services). Coller le bloc « x-galerie-chemins » en haut de ce fichier
+# (au même niveau que « services: ») et y mettre les chemins de
+# l'installation, puis coller les deux services sous « services: »,
+# adapter les valeurs, et :
 #   docker compose up -d --build galerie galerie-auth
-# et ajouter le bloc de caddy/Caddyfile.example au Caddyfile.
+# Ajouter ensuite le bloc de caddy/Caddyfile.example au Caddyfile.
 #
 # Aucun port n'est publié : Caddy joint la connexion Google par le réseau
 # « web », et seule la connexion Google joint le site.
 
+# Chemins propres à l'installation, déclarés une seule fois et repris
+# plus bas par leur nom (*sources, *photos…)
+x-galerie-chemins:
+  # Dossier du clone de galleryPerso (construction de l'image)
+  sources: &sources /srv/apps/galleryPerso
+  # Pages de connexion : dossier oauth2-proxy du clone
+  pages-connexion: &pages-connexion /srv/apps/galleryPerso/oauth2-proxy
+  # Photos et vidéos, une galerie par dossier
+  photos: &photos /var/www/famille.example.com/GalleryPhotos
+  creative: &creative /var/www/famille.example.com/GalleryCreative
+  # Vignettes, aperçus et vidéos converties (peut être effacé)
+  cache: &cache /srv/apps/galerie/cache
+  # Configuration du site : emails.txt
+  config: &config /srv/apps/galerie/config
+  # Médias en erreur de traitement : sous-dossier journal de la configuration
+  journal: &journal /srv/apps/galerie/config/journal
+
 services:
   galerie:
-    build: ${SITEIMAGEPERSO_SOURCES:?dossier du clone de galleryPerso}
+    build: *sources
     image: galerie
     container_name: galerie
     environment:
@@ -19,14 +36,13 @@ services:
       SITEIMAGEPERSO_MAX_WORKERS: 10
       SITEIMAGEPERSO_FFMPEG_THREADS: 2
     volumes:
-      - ${SITEIMAGEPERSO_GALLERY_PHOTOS:?}:/var/www/html/GalleryPhotos
-      - ${SITEIMAGEPERSO_GALLERY_CREATIVE:?}:/var/www/html/GalleryCreative
-      # Vignettes, aperçus et vidéos converties : peut être effacé, il se reconstruit
-      - ${SITEIMAGEPERSO_CACHE:?}:/var/www/html/cache
+      - { type: bind, source: *photos, target: /var/www/html/GalleryPhotos }
+      - { type: bind, source: *creative, target: /var/www/html/GalleryCreative }
+      - { type: bind, source: *cache, target: /var/www/html/cache }
       # Liste des médias en erreur de traitement (medias-en-erreur.txt).
       # Seul ce sous-dossier de la configuration est accessible en écriture :
       # le site ne peut pas toucher à emails.txt
-      - ${SITEIMAGEPERSO_CONFIG:?}/journal:/config/journal
+      - { type: bind, source: *journal, target: /config/journal }
     networks: [web]
     restart: unless-stopped
 
@@ -58,8 +74,8 @@ services:
       OAUTH2_PROXY_FOOTER: "-"
     volumes:
       # Pages de connexion et d'erreur, en français (dossier du clone)
-      - ${SITEIMAGEPERSO_SOURCES:?}/oauth2-proxy:/templates:ro
+      - { type: bind, source: *pages-connexion, target: /templates, read_only: true }
       # Configuration du site : emails.txt (fichier lisible par tous : chmod 644)
-      - ${SITEIMAGEPERSO_CONFIG:?}:/config:ro
+      - { type: bind, source: *config, target: /config, read_only: true }
     networks: [web]
     restart: unless-stopped
