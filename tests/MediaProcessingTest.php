@@ -61,8 +61,9 @@ function removeDirectoryRecursively($directory)
         rmdir($directory);
 }
 
-// JPEG 200x100 avec Orientation = 6 (à tourner de 90°) et une légende EXIF
-function createJpegWithExif($path, $description)
+// JPEG 200x100 avec Orientation = 6 (à tourner de 90°), une légende EXIF
+// et, si donné, un UserComment brut (préfixe de jeu de caractères compris)
+function createJpegWithExif($path, $description, $userComment = NULL)
 {
         $image = imagecreatetruecolor(200, 100);
         imagefill($image, 0, 0, imagecolorallocate($image, 200, 40, 40));
@@ -71,13 +72,23 @@ function createJpegWithExif($path, $description)
         $jpeg = ob_get_clean();
         imagedestroy($image);
 
-        $text = $description . "\0";
-        $tiff = 'II' . pack('v', 42) . pack('V', 8)
-                . pack('v', 2)
-                . pack('vvVV', 0x010E, 2, strlen($text), 8 + 2 + 2 * 12 + 4)
-                . pack('vvVvv', 0x0112, 3, 1, 6, 0)
-                . pack('V', 0)
-                . $text;
+        // Plus de 4 octets : la valeur est rangée après l'IFD, pas dans l'entrée
+        $text = str_pad($description . "\0", 5, "\0");
+        $count = ($userComment === NULL) ? 2 : 3;
+        $dataOffset = 8 + 2 + $count * 12 + 4;
+        $entries = pack('vvVV', 0x010E, 2, strlen($text), $dataOffset)
+                . pack('vvVvv', 0x0112, 3, 1, 6, 0);
+        $data = $text . ((strlen($text) % 2) ? "\0" : '');
+
+        if ($userComment !== NULL)
+        {
+                // Sous-IFD Exif contenant seulement UserComment
+                $exifOffset = $dataOffset + strlen($data);
+                $entries .= pack('vvVV', 0x8769, 4, 1, $exifOffset);
+                $data .= pack('v', 1) . pack('vvVV', 0x9286, 7, strlen($userComment), $exifOffset + 2 + 12 + 4) . pack('V', 0) . $userComment;
+        }
+
+        $tiff = 'II' . pack('v', 42) . pack('V', 8) . pack('v', $count) . $entries . pack('V', 0) . $data;
         $segment = "Exif\0\0" . $tiff;
         $app1 = "\xFF\xE1" . pack('n', strlen($segment) + 2) . $segment;
 
@@ -190,7 +201,10 @@ try
                 createJpegWithExif($galleryRoot . '/2024/Noël à la mer/sapin.jpg', '');
                 touch($galleryRoot . '/2024/Noël à la mer/sapin.jpg', time() - 60);
                 file_put_contents($album . '/legendes.txt', "Une belle journée <b>ensoleillée</b>\n\ncoucher.jpg: Le soir & la mer\n");
-                $expectedNames = array('coucher.jpg');
+                // UserComment avec préfixe « ASCII » ou « UNICODE » (appareils photo, téléphones)
+                createJpegWithExif($album . '/vagues.jpg', '', "ASCII\0\0\0Les vagues" . str_repeat("\0", 6));
+                createJpegWithExif($album . '/feu.jpg', '', "UNICODE\0" . mb_convert_encoding('Feu d\'artifice à Noël', 'UTF-16LE', 'UTF-8'));
+                $expectedNames = array('coucher.jpg', 'feu.jpg', 'vagues.jpg');
 
                 // Photo HEIC (format des iPhone) : vérifie que vips sait la décoder
                 copy($projectRoot . '/tests/samples/iphone.heic', $album . '/iphone.heic');
@@ -245,6 +259,8 @@ try
                 $photo = $items['coucher.jpg'];
                 assertSameValue(array(100, 200), array($photo['width'], $photo['height']), 'L\'orientation EXIF est appliquée');
                 assertSameValue('Coucher de soleil', $photo['caption'], 'Légende EXIF lue');
+                assertSameValue('Les vagues', $items['vagues.jpg']['caption'], 'UserComment ASCII lu sans idéogrammes');
+                assertSameValue('Feu d\'artifice à Noël', $items['feu.jpg']['caption'], 'UserComment UNICODE lu');
                 list($thumbWidth, $thumbHeight) = getimagesize($cacheRoot . '/' . $galleryName . '/2024/Plage/coucher.jpg.thumb.jpg');
                 assertTrueValue($thumbHeight > $thumbWidth, 'La vignette est tournée');
 
@@ -276,6 +292,38 @@ try
                 sleep(1);
                 runProcessor($projectRoot, $environment);
                 assertSameValue($generated, LoadAlbumManifest('./' . $galleryName . '/2024/Plage')['generated'], 'Rien n\'est retraité sans changement');
+
+                // Une fiche de la version 1 voit ses légendes relues, sans refaire les vignettes
+                $manifestPath = $cacheRoot . '/' . $galleryName . '/2024/Plage/album.json';
+                $oldManifest = json_decode(file_get_contents($manifestPath), TRUE);
+                $oldManifest['version'] = 1;
+
+                foreach ($oldManifest['items'] as $index => $item)
+                {
+                        if ($item['name'] === 'vagues.jpg')
+                        {
+                                $oldManifest['items'][$index]['caption'] = '十䥃I敌⁳慶畧獥';
+                        }
+                }
+
+                file_put_contents($manifestPath, json_encode($oldManifest));
+                $thumbPath = $cacheRoot . '/' . $galleryName . '/2024/Plage/vagues.jpg.thumb.jpg';
+                touch($thumbPath, time() - 3600);
+                clearstatcache();
+                $thumbTime = filemtime($thumbPath);
+                runProcessor($projectRoot, $environment);
+                $fixedItems = array();
+
+                foreach (LoadAlbumManifest('./' . $galleryName . '/2024/Plage')['items'] as $item)
+                {
+                        $fixedItems[$item['name']] = $item;
+                }
+
+                assertSameValue('Les vagues', $fixedItems['vagues.jpg']['caption'], 'Une légende corrompue est corrigée');
+                assertSameValue(2, json_decode(file_get_contents($manifestPath), TRUE)['version'], 'La fiche passe en version 2');
+                clearstatcache();
+                assertSameValue($thumbTime, filemtime($thumbPath), 'Les vignettes ne sont pas refaites');
+
                 unlink($album . '/coucher.jpg');
                 runProcessor($projectRoot, $environment);
                 assertTrueValue(!is_file($cacheRoot . '/' . $galleryName . '/2024/Plage/coucher.jpg.thumb.jpg'), 'Le cache d\'un fichier supprimé est nettoyé');
