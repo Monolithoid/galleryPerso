@@ -1,8 +1,9 @@
 # La galerie dans le docker-compose qui contient déjà Caddy (et d'autres
 # services). Coller les deux services ci-dessous sous « services: » de ce
-# fichier, renseigner les chemins dans le .env placé à côté de ce
-# docker-compose (modèle : caddy/galerie.env.example), adapter les valeurs,
-# puis :
+# fichier, puis mettre les valeurs propres à l'installation (chemins,
+# identifiants Google, adresse du site) dans le .env placé à côté de ce
+# docker-compose, le seul que docker compose lit (modèle :
+# caddy/galerie.env.example), et :
 #   docker compose up -d --build galerie galerie-auth
 # et ajouter le bloc de caddy/Caddyfile.example au Caddyfile.
 #
@@ -38,11 +39,10 @@ services:
       - galerie
     environment:
       OAUTH2_PROXY_PROVIDER: google
-      OAUTH2_PROXY_CLIENT_ID: "xxxx.apps.googleusercontent.com"
-      OAUTH2_PROXY_CLIENT_SECRET: "xxxx"
-      # 32 caractères aléatoires : openssl rand -hex 16
-      OAUTH2_PROXY_COOKIE_SECRET: "xxxx"
-      OAUTH2_PROXY_REDIRECT_URL: "https://famille.example.com/oauth2/callback"
+      OAUTH2_PROXY_CLIENT_ID: ${GOOGLE_CLIENT_ID:?}
+      OAUTH2_PROXY_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?}
+      OAUTH2_PROXY_COOKIE_SECRET: ${SITEIMAGEPERSO_COOKIE_SECRET:?}
+      OAUTH2_PROXY_REDIRECT_URL: ${SITEIMAGEPERSO_PUBLIC_URL:?}/oauth2/callback
       OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
       OAUTH2_PROXY_UPSTREAMS: "http://galerie:80/"
       # Une adresse par ligne ; relu dès qu'il change, sans redémarrage
