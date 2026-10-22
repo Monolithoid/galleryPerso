@@ -110,7 +110,7 @@ Le site n’est visible qu’après connexion avec un compte Google dont l’adr
 Une fois connecté, l’adresse et un lien « Déconnexion » s’affichent en haut à droite. Après une déconnexion, Google propose de choisir le compte, ce qui permet de changer de personne sur un ordinateur partagé.
 
 **HTTPS** : Google n’accepte une adresse de retour en `http` que pour `localhost`. Sur le serveur, un reverse proxy garde le certificat et transmet les requêtes au conteneur :
-- **Caddy** : voir `caddy/Caddyfile.example` (une ligne `reverse_proxy 127.0.0.1:8080`). Si Caddy tourne lui-même dans Docker, il ne peut pas joindre le `127.0.0.1` de l’hôte : branchez les deux sur un réseau commun avec `caddy/docker-compose.caddy.example.yml` et utilisez `reverse_proxy oauth2-proxy:4180` ;
+- **Caddy** : voir `caddy/Caddyfile.example` (une ligne `reverse_proxy 127.0.0.1:8080`). Si Caddy tourne lui-même dans Docker, le plus simple est de déclarer la galerie et sa connexion Google directement dans le docker-compose de Caddy : voir `caddy/compose-avec-caddy.example.yml` (réglages dans `environment:`, liste des adresses dans un fichier monté, relu sans redémarrage) et `reverse_proxy galerie-auth:4180` ;
 - **Apache** : voir `apache2/site-available/002-example.com-docker-le-ssl.conf` (modules `proxy`, `proxy_http` et `headers`).
 
 Le port du conteneur n’écoute que sur `127.0.0.1` (`SITEIMAGEPERSO_HTTP_BIND`) : on ne peut pas contourner la connexion en passant par le port 8080 depuis l’extérieur.

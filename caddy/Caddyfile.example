@@ -9,7 +9,8 @@ famille.example.com {
 	# Caddy installé sur le serveur : port SITEIMAGEPERSO_HTTP_PORT du fichier .env
 	reverse_proxy 127.0.0.1:8080
 
-	# Caddy dans un conteneur Docker : remplacer la ligne ci-dessus par
-	#   reverse_proxy oauth2-proxy:4180
-	# et relier les deux conteneurs (voir docker-compose.caddy.example.yml)
+	# Caddy dans un conteneur Docker, avec la galerie dans le même
+	# docker-compose (voir compose-avec-caddy.example.yml) : remplacer la
+	# ligne ci-dessus par
+	#   reverse_proxy galerie-auth:4180
 }

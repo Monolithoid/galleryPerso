@@ -1,0 +1,56 @@
+# La galerie dans le docker-compose qui contient déjà Caddy (et d'autres
+# services). Coller les deux services ci-dessous sous « services: » de ce
+# fichier, adapter les chemins et les valeurs, puis :
+#   docker compose up -d --build galerie galerie-auth
+# et ajouter le bloc de caddy/Caddyfile.example au Caddyfile.
+#
+# Aucun port n'est publié : Caddy joint la connexion Google par le réseau
+# « web », et seule la connexion Google joint le site.
+
+services:
+  galerie:
+    build: /srv/apps/galleryPerso          # dossier du clone de galleryPerso
+    image: galerie
+    container_name: galerie
+    environment:
+      SITEIMAGEPERSO_SCAN_INTERVAL: 60
+      SITEIMAGEPERSO_MAX_WORKERS: 10
+      SITEIMAGEPERSO_FFMPEG_THREADS: 2
+    volumes:
+      - /var/www/famille.example.com/GalleryPhotos:/var/www/html/GalleryPhotos
+      - /var/www/famille.example.com/GalleryCreative:/var/www/html/GalleryCreative
+      # Vignettes, aperçus et vidéos converties : peut être effacé, il se reconstruit
+      - /srv/apps/galerie/cache:/var/www/html/cache
+    networks: [web]
+    restart: unless-stopped
+
+  # Connexion Google : seules les adresses de emails.txt entrent
+  galerie-auth:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.5
+    container_name: galerie-auth
+    depends_on:
+      - galerie
+    environment:
+      OAUTH2_PROXY_PROVIDER: google
+      OAUTH2_PROXY_CLIENT_ID: "xxxx.apps.googleusercontent.com"
+      OAUTH2_PROXY_CLIENT_SECRET: "xxxx"
+      # 32 caractères aléatoires : openssl rand -hex 16
+      OAUTH2_PROXY_COOKIE_SECRET: "xxxx"
+      OAUTH2_PROXY_REDIRECT_URL: "https://famille.example.com/oauth2/callback"
+      OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
+      OAUTH2_PROXY_UPSTREAMS: "http://galerie:80/"
+      # Une adresse par ligne ; relu dès qu'il change, sans redémarrage
+      OAUTH2_PROXY_AUTHENTICATED_EMAILS_FILE: /data/emails.txt
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
+      OAUTH2_PROXY_PROMPT: select_account
+      OAUTH2_PROXY_COOKIE_NAME: _galerie_session
+      OAUTH2_PROXY_COOKIE_EXPIRE: 720h
+      OAUTH2_PROXY_REVERSE_PROXY: "true"
+      OAUTH2_PROXY_TRUSTED_PROXY_IPS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+      OAUTH2_PROXY_BANNER: "Galerie photos de famille"
+      OAUTH2_PROXY_FOOTER: "-"
+    volumes:
+      # Dossier contenant emails.txt (fichier lisible par tous : chmod 644)
+      - /srv/apps/galerie/auth:/data:ro
+    networks: [web]
+    restart: unless-stopped
