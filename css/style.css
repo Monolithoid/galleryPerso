@@ -352,6 +352,44 @@ img
         font-size: 0.75rem;
 }
 
+.media-thumb__type
+{
+        position: absolute;
+        top: 0.35rem;
+        left: 0.35rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.6rem;
+        height: 1.6rem;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        pointer-events: none;
+}
+
+.media-thumb__type svg
+{
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+}
+
+.visually-hidden
+{
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+}
+
 .media-caption
 {
         margin: 0.25rem 0 0;
@@ -614,6 +652,20 @@ body.viewer-open
         .media-thumb
         {
                 border-radius: 2px;
+        }
+
+        .media-thumb__type
+        {
+                top: 0.25rem;
+                left: 0.25rem;
+                width: 1.4rem;
+                height: 1.4rem;
+        }
+
+        .media-thumb__badge
+        {
+                right: 0.25rem;
+                bottom: 0.25rem;
         }
 
         .media-caption
