@@ -1,6 +1,8 @@
 # La galerie dans le docker-compose qui contient déjà Caddy (et d'autres
 # services). Coller les deux services ci-dessous sous « services: » de ce
-# fichier, adapter les chemins et les valeurs, puis :
+# fichier, renseigner les chemins dans le .env placé à côté de ce
+# docker-compose (modèle : caddy/galerie.env.example), adapter les valeurs,
+# puis :
 #   docker compose up -d --build galerie galerie-auth
 # et ajouter le bloc de caddy/Caddyfile.example au Caddyfile.
 #
@@ -9,7 +11,7 @@
 
 services:
   galerie:
-    build: /srv/apps/galleryPerso          # dossier du clone de galleryPerso
+    build: ${SITEIMAGEPERSO_SOURCES:?dossier du clone de galleryPerso}
     image: galerie
     container_name: galerie
     environment:
@@ -17,14 +19,14 @@ services:
       SITEIMAGEPERSO_MAX_WORKERS: 10
       SITEIMAGEPERSO_FFMPEG_THREADS: 2
     volumes:
-      - /var/www/famille.example.com/GalleryPhotos:/var/www/html/GalleryPhotos
-      - /var/www/famille.example.com/GalleryCreative:/var/www/html/GalleryCreative
+      - ${SITEIMAGEPERSO_GALLERY_PHOTOS:?}:/var/www/html/GalleryPhotos
+      - ${SITEIMAGEPERSO_GALLERY_CREATIVE:?}:/var/www/html/GalleryCreative
       # Vignettes, aperçus et vidéos converties : peut être effacé, il se reconstruit
-      - /srv/apps/galerie/cache:/var/www/html/cache
+      - ${SITEIMAGEPERSO_CACHE:?}:/var/www/html/cache
       # Liste des médias en erreur de traitement (medias-en-erreur.txt).
       # Seul ce sous-dossier de la configuration est accessible en écriture :
       # le site ne peut pas toucher à emails.txt
-      - /srv/apps/galerie/config/journal:/config/journal
+      - ${SITEIMAGEPERSO_CONFIG:?}/journal:/config/journal
     networks: [web]
     restart: unless-stopped
 
@@ -56,8 +58,8 @@ services:
       OAUTH2_PROXY_FOOTER: "-"
     volumes:
       # Pages de connexion et d'erreur, en français (dossier du clone)
-      - /srv/apps/galleryPerso/oauth2-proxy:/templates:ro
+      - ${SITEIMAGEPERSO_SOURCES:?}/oauth2-proxy:/templates:ro
       # Configuration du site : emails.txt (fichier lisible par tous : chmod 644)
-      - /srv/apps/galerie/config:/config:ro
+      - ${SITEIMAGEPERSO_CONFIG:?}:/config:ro
     networks: [web]
     restart: unless-stopped
