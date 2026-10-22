@@ -17,10 +17,9 @@ services:
       - "${SITEIMAGEPERSO_CACHE:-./cache}:/var/www/html/cache"
     restart: unless-stopped
 
-  # Connexion Google : seules les adresses de SITEIMAGEPERSO_ALLOWED_EMAILS entrent
+  # Connexion Google : seules les adresses de config/emails.txt entrent
   oauth2-proxy:
-    # Variante Alpine : il faut un shell pour écrire la liste des adresses
-    image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.5-alpine
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.5
     depends_on:
       - siteimageperso
     ports:
@@ -28,20 +27,7 @@ services:
       - "${SITEIMAGEPERSO_HTTP_BIND:-127.0.0.1}:${SITEIMAGEPERSO_HTTP_PORT:-8080}:4180"
     # Réglages dans .env ; s'il en manque un, le proxy ne démarre pas et
     # l'explique dans « docker compose logs oauth2-proxy »
-    # oauth2-proxy lit les adresses autorisées dans un fichier : il est écrit
-    # au démarrage à partir de .env (séparées par des virgules ou des espaces)
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        echo "$$SITEIMAGEPERSO_ALLOWED_EMAILS" | tr ',; ' '\n\n\n' | grep -v '^$$' > /tmp/emails.txt
-        if [ ! -s /tmp/emails.txt ]; then
-          echo "SITEIMAGEPERSO_ALLOWED_EMAILS est vide dans .env : personne ne pourrait entrer."
-          exit 1
-        fi
-        echo "Adresses autorisées : $$(wc -l < /tmp/emails.txt)"
-        exec /bin/oauth2-proxy
     environment:
-      SITEIMAGEPERSO_ALLOWED_EMAILS: "${SITEIMAGEPERSO_ALLOWED_EMAILS:-}"
       OAUTH2_PROXY_PROVIDER: google
       OAUTH2_PROXY_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
       OAUTH2_PROXY_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
@@ -49,7 +35,8 @@ services:
       OAUTH2_PROXY_REDIRECT_URL: "${SITEIMAGEPERSO_PUBLIC_URL:-http://localhost:8080}/oauth2/callback"
       OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
       OAUTH2_PROXY_UPSTREAMS: "http://siteimageperso:80/"
-      OAUTH2_PROXY_AUTHENTICATED_EMAILS_FILE: /tmp/emails.txt
+      # Une adresse par ligne, relu dès qu'il change
+      OAUTH2_PROXY_AUTHENTICATED_EMAILS_FILE: /config/emails.txt
       # Envoie directement vers Google, avec le choix du compte
       OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
       OAUTH2_PROXY_PROMPT: select_account
@@ -61,4 +48,7 @@ services:
       OAUTH2_PROXY_TRUSTED_PROXY_IPS: "127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
       OAUTH2_PROXY_BANNER: "Galerie photos de famille"
       OAUTH2_PROXY_FOOTER: "-"
+    volumes:
+      # Configuration du site (emails.txt), hors du dépôt
+      - "${SITEIMAGEPERSO_CONFIG:-./config}:/config:ro"
     restart: unless-stopped
