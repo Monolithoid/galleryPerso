@@ -4,7 +4,7 @@ Un petit site familial — volontairement old school — pour naviguer dans des 
 ## Principe général
 - Les médias sont stockés sur un espace réseau monté sur le serveur web.  
 - L’arborescence des dossiers (« année / événement », par exemple) est directement reflétée dans la navigation du site.
-- Les pages PHP se chargent de générer dynamiquement les miniatures, les aperçus et les légendes en s’appuyant sur cette arborescence.
+- Les pages PHP se chargent de générer dynamiquement les miniatures et les aperçus en s’appuyant sur cette arborescence.
 
 ## Fonctionnement du site
 
@@ -22,7 +22,7 @@ Un petit site familial — volontairement old school — pour naviguer dans des 
 `script/viewer.js` ouvre les photos et vidéos en plein écran :
 - précédent et suivant avec les flèches, les touches ← → ou en glissant le doigt ; Échap, la croix, un glissement vers le bas ou le bouton retour du téléphone pour fermer ;
 - lecture native des vidéos avec leur image d'aperçu ;
-- lien « Original » vers le fichier en pleine qualité, légende et date de prise de vue ;
+- lien « Original » vers le fichier en pleine qualité et date de prise de vue ;
 - l'adresse garde le média ouvert (`#media=nom`), ce qui permet de partager un lien vers une photo.
 
 ### Traitement automatique des médias
@@ -31,7 +31,7 @@ Un petit site familial — volontairement old school — pour naviguer dans des 
 - crée une vignette et un aperçu en **corrigeant l'orientation** d'après l'EXIF ;
 - pour les formats que les navigateurs n'affichent pas (HEIC, TIFF…), crée en plus une version JPEG pleine taille ;
 - pour les vidéos, extrait une image d'aperçu, lit la durée et l'orientation, et **convertit en MP4 (H.264/AAC) uniquement si l'original n'est pas lisible** par les navigateurs ;
-- relève la date de prise de vue et la légende éventuellement présente dans les métadonnées.
+- relève la date de prise de vue dans les métadonnées.
 
 Tout est rangé dans le cache (`cache/` par défaut), qui reproduit l'arborescence des galeries. **Les originaux ne sont jamais modifiés** et rien n'est écrit dans les dossiers d'albums. Un fichier déjà traité et inchangé n'est pas retraité ; un fichier supprimé disparaît du cache au passage suivant. Le cache peut être effacé sans risque : il se reconstruit tout seul.
 
@@ -43,29 +43,12 @@ Tout est rangé dans le cache (`cache/` par défaut), qui reproduit l'arborescen
 
 Lancement à la main (hors Docker) : `php bin/process-media.php --once -v`. Outils nécessaires : `vipsthumbnail` avec la prise en charge HEIF (paquets `vips-tools` et `vips-heif` sous Alpine, `libvips-tools` et `libheif-plugin-libde265` sous Debian/Ubuntu), `ffmpeg` et `ffprobe`.
 
-### Légendes
-Chaque album peut contenir un fichier texte `legendes.txt` :
-
-```
-Vacances au bord de la mer, été 2024.
-
-IMG_0001.jpg: Alice sur la plage
-  une ligne qui commence par un espace prolonge la légende
-video_anniversaire.mp4: Les bougies
-```
-
-- Les lignes avant la première légende forment l'introduction de l'album.
-- Une légende s'écrit `nom_du_fichier: texte`. Les lignes qui commencent par `#` sont ignorées.
-- Si une photo n'a pas de légende dans `legendes.txt`, le site reprend celle de ses métadonnées (EXIF), si elle existe.
-  Cette légende est copiée dans le champ `caption` de `album.json` (cache). Pour la relire, il suffit d'effacer le `album.json` de l'album (ou tout le cache) : le traitement suivant la reconstruit, et `legendes.txt` n'est jamais touché.
-- Les modifications de `legendes.txt` s'affichent immédiatement, sans attendre le traitement.
-
-Pour convertir les anciennes légendes (dossier `Legend/` ou `legend/` avec un fichier HTML par photo, `photo.html` pour `photo.jpg`) : `docker compose exec siteimageperso php bin/migrate-legends.php --dry-run` pour voir le résultat, puis sans `--dry-run` pour écrire les fichiers. Les anciens dossiers `Legend/`, `Small/` et `Middle/` ne sont pas supprimés, ils sont simplement ignorés par le site.
+### Anciens dossiers
+Les dossiers `Legend/`, `Small/` et `Middle/` de l'ancien site ne sont ni lus ni supprimés : le site les ignore. Le site n'affiche pas de légendes.
 
 ### Préparer un nouvel album
 1. Créer un dossier dans `GalleryPhotos/` ou `GalleryCreative/` (des sous-dossiers sont possibles) et y déposer les photos et vidéos telles quelles, sans conversion.
-2. (Facultatif) Ajouter un fichier `legendes.txt`.
-3. L'album apparaît sur le site au fil du traitement, en général dans la minute pour les photos. Les vidéos à convertir demandent plus de temps.
+2. L'album apparaît sur le site au fil du traitement, en général dans la minute pour les photos. Les vidéos à convertir demandent plus de temps.
 
 ### Personnalisation
 - `ImagesSite/` contient les images utilisées sur la page d’accueil (ex. `MainPhoto.jpg`, affichée en haut de l’accueil si elle existe).
@@ -142,7 +125,7 @@ Le port du conteneur n’écoute que sur `127.0.0.1` (`SITEIMAGEPERSO_HTTP_BIND`
 - Le script d’entrée du conteneur prépare le dossier du cache et lance le traitement des médias en arrière-plan (désactivable avec `SITEIMAGEPERSO_DISABLE_PROCESSOR=1`). Son journal est visible avec `docker compose logs -f`.
 
 ## Tests
-`php tests/MediaProcessingTest.php` vérifie la détection des formats, l'orientation EXIF, la conversion des vidéos, le cache, la lecture et la migration des légendes (les cas qui demandent `vipsthumbnail` ou `ffmpeg` sont ignorés si ces outils manquent). Dans Docker, tout doit passer, y compris la photo HEIC d'exemple (`tests/samples/iphone.heic`) : `docker compose build && docker compose run --rm --entrypoint php siteimageperso tests/MediaProcessingTest.php`. C'est la vérification à faire après chaque changement de l'image (version d'Alpine, paquets).
+`php tests/MediaProcessingTest.php` vérifie la détection des formats, l'orientation EXIF, la conversion des vidéos, le cache et l'affichage d'un album (les cas qui demandent `vipsthumbnail` ou `ffmpeg` sont ignorés si ces outils manquent). Dans Docker, tout doit passer, y compris la photo HEIC d'exemple (`tests/samples/iphone.heic`) : `docker compose build && docker compose run --rm --entrypoint php siteimageperso tests/MediaProcessingTest.php`. C'est la vérification à faire après chaque changement de l'image (version d'Alpine, paquets).
 
 Le fichier `tests/VideoAccessTest.php` lance un serveur PHP intégré et vérifie que `video.php` répond correctement (statuts 200/403/404). Exécuter le script `php tests/VideoAccessTest.php` permet de s’assurer que la diffusion vidéo reste sécurisée.
 

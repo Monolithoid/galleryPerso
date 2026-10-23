@@ -212,7 +212,7 @@
                         element.poster = item.poster || '';
                         element.src = item.src;
                 } else {
-                        element = createElement('img', '', { alt: item.caption || item.name });
+                        element = createElement('img', '', { alt: item.name });
                         element.src = item.src;
                 }
 
@@ -225,7 +225,7 @@
 
                 this.counter.textContent = (index + 1) + ' / ' + this.items.length;
                 this.originalLink.href = item.original;
-                this.caption.textContent = item.caption || '';
+                this.caption.textContent = '';
 
                 var date = formatDate(item.taken);
 

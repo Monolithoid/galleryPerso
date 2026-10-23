@@ -217,11 +217,6 @@ function FormatMediaDuration($Seconds)
         return sprintf('%d:%02d', $Seconds / 60, $Seconds % 60);
 }
 
-function FormatMediaText($Text)
-{
-        return nl2br(htmlspecialchars($Text, ENT_QUOTES, 'UTF-8'));
-}
-
 function EscapeHtml($Text)
 {
         return htmlspecialchars((string) $Text, ENT_QUOTES, 'UTF-8');
@@ -424,17 +419,11 @@ function RenderAlbum($Gallery, $Album)
         }
 
         $Title = ($AlbumPath === $Gallery) ? GetGalleryLabel(basename($ResolvedPath['absolute'])) : basename($ResolvedPath['absolute']);
-        $Legends = LoadAlbumLegends($ResolvedPath['absolute']);
         $Manifest = LoadAlbumManifest($ResolvedPath['relative']);
         $SubAlbums = ListSubAlbums($ResolvedPath['relative']);
 
         $Html = RenderBreadcrumb($Gallery, $Album);
         $Html .= '<h1 class="album-title">' . EscapeHtml($Title) . '</h1>';
-
-        if ($Legends['intro'] !== '')
-        {
-                $Html .= '<p class="album-intro">' . FormatMediaText($Legends['intro']) . '</p>';
-        }
 
         if (count($SubAlbums) > 0)
         {
@@ -464,8 +453,7 @@ function RenderAlbum($Gallery, $Album)
 
         foreach ($Items as $Index => $Item)
         {
-                $Caption = GetMediaCaption($Item, $Legends);
-                $Label = ($Caption !== '') ? $Caption : pathinfo($Item['name'], PATHINFO_FILENAME);
+                $Label = pathinfo($Item['name'], PATHINFO_FILENAME);
 
                 $Html .= '<li><button type="button" class="media-thumb media-thumb--' . EscapeHtml($Item['kind']) . '" data-index="' . $Index . '" title="' . EscapeHtml($Label) . '">';
                 $Html .= '<img src="' . EscapeHtml($Item['thumb']) . '" width="' . (int) $Item['thumb_width'] . '" height="' . (int) $Item['thumb_height'] . '" alt="' . EscapeHtml($Label) . '" loading="lazy">';
@@ -476,15 +464,8 @@ function RenderAlbum($Gallery, $Album)
                         $Html .= '<span class="media-thumb__badge">' . FormatMediaDuration($Item['duration']) . '</span>';
                 }
 
-                $Html .= '</button>';
-
-                if ($Caption !== '')
-                {
-                        $Html .= '<p class="media-caption">' . EscapeHtml($Caption) . '</p>';
-                }
-
-                $Html .= '</li>';
-                $ViewerItems[] = GetViewerItem($Item, $Caption);
+                $Html .= '</button></li>';
+                $ViewerItems[] = GetViewerItem($Item);
         }
 
         $Html .= '</ul>';
@@ -515,7 +496,7 @@ function RenderMediaTypeIcon($Kind)
 }
 
 // Ce dont la visionneuse (script/viewer.js) a besoin pour un média
-function GetViewerItem($Item, $Caption)
+function GetViewerItem($Item)
 {
         $Original = empty($Item['full']) ? $Item['original'] : $Item['full'];
 
@@ -529,7 +510,6 @@ function GetViewerItem($Item, $Caption)
                         'original' => $Item['video'],
                         'width' => (int) $Item['width'],
                         'height' => (int) $Item['height'],
-                        'caption' => $Caption,
                         'taken' => $Item['taken']
                 );
         }
@@ -541,7 +521,6 @@ function GetViewerItem($Item, $Caption)
                 'original' => $Original,
                 'width' => (int) $Item['width'],
                 'height' => (int) $Item['height'],
-                'caption' => $Caption,
                 'taken' => $Item['taken']
         );
 }
