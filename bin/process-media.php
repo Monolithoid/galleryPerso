@@ -32,9 +32,10 @@ require_once __DIR__ . '/../lib/media.php';
 
 // Version 2 : légendes EXIF « ASCII » et « UNICODE » mal décodées en version 1
 // Version 3 : données binaires des appareils prises pour des légendes
-define('PROCESSOR_VERSION', 3);
+// Version 4 : textes génériques « User comments »...
+define('PROCESSOR_VERSION', 4);
 // Fiches plus anciennes dont seules les légendes sont à relire
-define('PROCESSOR_CAPTION_FIX_VERSIONS', array(1, 2));
+define('PROCESSOR_CAPTION_FIX_VERSIONS', array(1, 2, 3));
 
 $Options = getopt('v', array('once', 'interval:'));
 $Verbose = isset($Options['v']);
@@ -257,7 +258,7 @@ function CleanMetadataText($Value)
         $Value = trim($Value);
 
         // Textes génériques écrits par les appareils photo
-        if (preg_match('/^(OLYMPUS DIGITAL CAMERA|SONY DSC|DCIM|default|untitled|Image)$/i', $Value) === 1)
+        if (preg_match('/^(OLYMPUS DIGITAL CAMERA|(KONICA )?MINOLTA DIGITAL CAMERA|SONY DSC|DCIM|default|untitled|Image|User comments?|Exif_JPEG_PICTURE|ASCII|UNICODE)$/i', $Value) === 1)
         {
                 return '';
         }
