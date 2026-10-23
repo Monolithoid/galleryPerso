@@ -22,6 +22,8 @@ mkdir($AlbumCache, 0777, TRUE);
 
 putenv('SITEIMAGEPERSO_CACHE_DIR=' . $CacheDirectory);
 putenv('SITEIMAGEPERSO_LIKES_FILE=' . $WorkDirectory . '/likes/likes.json');
+putenv('SITEIMAGEPERSO_EMAILS_FILE=' . $WorkDirectory . '/emails.txt');
+file_put_contents($WorkDirectory . '/emails.txt', "# Liste\nLea@Exemple.fr, Léa\ntom@exemple.fr\n");
 
 $Item = function ($Name)
 {
@@ -67,8 +69,11 @@ try
         assertSameValue(array(
                 'Font l\'unanimité' => array($A),
                 'Mes coups de cœur' => array($A),
-                'Les coups de cœur de lea' => array($A, $C)
+                'Les coups de cœur de Léa' => array($A, $C)
         ), $Summary, 'Rubriques de l\'accueil');
+
+        assertSameValue('Léa', GetLikerLabel('lea@exemple.fr'), 'Prénom lu dans emails.txt');
+        assertSameValue('tom', GetLikerLabel('tom@exemple.fr'), 'Sans prénom : partie avant @');
 
         echo "LikesTest : OK\n";
 }

@@ -24,11 +24,11 @@ services:
       - ${SITEIMAGEPERSO_GALLERY_CREATIVE:?}:/var/www/html/GalleryCreative
       # Vignettes, aperçus et vidéos converties : peut être effacé, il se reconstruit
       - ${SITEIMAGEPERSO_CACHE:?}:/var/www/html/cache
-      # Liste des médias en erreur de traitement (medias-en-erreur.txt),
-      # « j'aime » de chacun (likes.json) et photos tournées depuis la
-      # visionneuse (rotations.json). Seuls ces sous-dossiers de la
-      # configuration sont accessibles en écriture : le site ne peut pas
-      # toucher à emails.txt
+      # Configuration du site en lecture seule : le site lit les prénoms de
+      # emails.txt mais ne peut pas le modifier. Seuls journal/ (médias en
+      # erreur), likes/ (« j'aime » de chacun) et rotations/ (photos tournées
+      # depuis la visionneuse) sont accessibles en écriture
+      - ${SITEIMAGEPERSO_CONFIG:?}:/config:ro
       - ${SITEIMAGEPERSO_CONFIG:?}/journal:/config/journal
       - ${SITEIMAGEPERSO_CONFIG:?}/likes:/config/likes
       - ${SITEIMAGEPERSO_CONFIG:?}/rotations:/config/rotations

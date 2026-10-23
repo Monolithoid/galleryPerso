@@ -1,7 +1,13 @@
-# Adresses Google autorisées à voir la galerie, une par ligne.
+# Adresses Google autorisées à voir la galerie, une par ligne, suivie
+# d'une virgule et du prénom affiché sur le site (coups de cœur, en-tête).
+# Toutes les lignes doivent avoir le même nombre de virgules : une seule.
+# Une ligne sans prénom (ou avec deux virgules) rend le fichier illisible
+# pour la connexion Google, qui garde alors l'ancienne liste, ou refuse
+# tout le monde si elle démarre avec ce fichier.
+# Pas de guillemets ni de virgule dans un prénom.
 # Copier ce dossier en dehors du dépôt (ou en ./config, ignoré par git)
 # et indiquer son chemin dans SITEIMAGEPERSO_CONFIG.
 # Les lignes qui commencent par # sont ignorées ; les changements sont
 # pris en compte sans redémarrer.
-prenom.nom@gmail.com
-autre.personne@exemple.fr
+prenom.nom@gmail.com, Prénom
+autre.personne@exemple.fr, Autre
