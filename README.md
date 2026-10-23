@@ -51,7 +51,7 @@ Les dossiers `Legend/`, `Small/` et `Middle/` de l'ancien site ne sont ni lus ni
 2. L'album apparaît sur le site au fil du traitement, en général dans la minute pour les photos. Les vidéos à convertir demandent plus de temps.
 
 ### Personnalisation
-- `ImagesSite/` contient les images utilisées sur la page d’accueil (ex. `MainPhoto.jpg`, affichée en haut de l’accueil si elle existe).
+- `ImagesSite/MainPhoto.jpg` (dossier à créer, absent du dépôt) est affichée en haut de l’accueil si elle existe.
 - `main.php` liste les actualités à mettre à jour manuellement.
 - Les noms des galeries se règlent dans `GetGalleryLabel()` (`lib/media.php`) ou avec `SITEIMAGEPERSO_GALLERY_LABELS="GalleryPhotos=Galerie des gosses;GalleryCreative=Galerie des glaces"`.
 - `header.php` et `css/style.css` permettent d’adapter le bandeau et l’apparence générale (les couleurs sont regroupées en haut de `css/style.css`).

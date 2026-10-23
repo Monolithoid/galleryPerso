@@ -2,78 +2,6 @@
 require_once __DIR__ . '/lib/media.php';
 require_once __DIR__ . '/lib/likes.php';
 
-function PsExec($commandJob, $pidfile = NULL)
-{ 
-
-        $command = $commandJob.' > /dev/null 2>&1 & echo $!'; 
-		
-        exec($command ,$op); 
-        $pid = $op[0];
-                
-		if ($pidfile != NULL)
-		{
-			$handle = fopen($pidfile,'w');
-			fwrite( $handle, $pid);
-			fclose($handle);
-		}
-
-		return $pid; 
-//        if($pid!="") return $pid; 
-//
-//        return false; 
-} 
-
-function PsExists($pid)
-{
-	$check_pid = shell_exec('ps h -o pid '.$pid);
-
-	if ((int)$check_pid == (int)$pid)
-		return true;
-
-	return false; 
-} 
-
-function PsExistsFromFile($pidfile)
-{ 
-	$pid = shell_exec('cat '. $pidfile);
-	
-	if (!empty($pid))
-	{
-		$check_pid = shell_exec('ps h -o pid '.$pid);
-
-		if ((int)$check_pid == (int)$pid)
-			return true;
-	}
-	
-	return false; 
-}
-
-function PsKill($pid, $signal)
-{ 
-    exec("kill -" . $signal . " " . $pid, $output); 
-}
-
-function PsKillExistsFromFile($pidfile)
-{
-	$pid = shell_exec('cat '. $pidfile);
-	
-	if (!empty($pid))
-	{
-		if (PsExists($pid)) PsKill($pid, '9');
-	}
-}
-
-function Puissance($x,$p)
-{
-	while ($p>1)
-	{
-		$p--;
-		$x *= $x;
-	}
-
-	return $x;
-}
-
 function GetNotEmpty($Value, $DefaultValue)
 {
 	if (!empty($Value))
@@ -81,13 +9,6 @@ function GetNotEmpty($Value, $DefaultValue)
 		return($Value);
 	}
 	return($DefaultValue);
-}
-
-function ExchangeValue(&$Value1, &$Value2)
-{
-        $tmp = $Value1;
-        $Value1 = $Value2;
-        $Value2 = $tmp;
 }
 
 function GetGalleryBaseDirectory()
@@ -198,12 +119,6 @@ function ResolveGalleryDirectoryPath($RequestedPath)
                 'absolute' => $ResolvedPath,
                 'relative' => './' . $RelativePath
         );
-}
-
-function remove_fileext($str) {
-        list($noext) = explode('.', $str);
-
-        return $noext ;
 }
 
 function FormatMediaDuration($Seconds)
@@ -721,106 +636,6 @@ function CompareGalleryTreeNodes($LeftNode, $RightNode)
         }
 
         return strcasecmp($LeftLabel, $RightLabel);
-}
-
-function AddOptionGallery($Path, &$NbLine, $CurrentDiaporama = '')
-{
-        $ResolvedPath = ResolveGalleryDirectoryPath($Path);
-
-        if ($ResolvedPath === NULL)
-        {
-                return '';
-        }
-
-        $AbsolutePath = $ResolvedPath['absolute'];
-        $RelativePath = $ResolvedPath['relative'];
-        $ListeDir = scandir($AbsolutePath, 1);
-
-        if ($ListeDir === FALSE)
-        {
-                return '';
-        }
-
-        $Str = '';
-
-        foreach ($ListeDir as $file)
-        {
-                if (($file == "..")
-                        || ($file == ".")
-                        || IsIgnoredMediaEntry($file))
-                {
-                        continue;
-                }
-
-                $CandidateRelative = $RelativePath . '/' . $file;
-                $CandidatePath = ResolveGalleryDirectoryPath($CandidateRelative);
-
-                if ($CandidatePath === NULL)
-                {
-                        continue;
-                }
-
-                $NbLine++;
-                $ChildRelativePath = $CandidatePath['relative'];
-                $EscapedFileName = htmlspecialchars($file, ENT_QUOTES, 'UTF-8');
-
-                if ($ChildRelativePath === $CurrentDiaporama)
-                {
-                        $Str = $Str . '<div class="optioncurrent" ><a href="javascript:document.forms[\'form_Gallery\'].Diaporama.value=\''. $ChildRelativePath .'\';document.forms[\'form_Gallery\'].submit();">' . $EscapedFileName . '</a></div>' . PHP_EOL;
-                }
-                else
-                {
-                        $Str = $Str . '<div class="option"  onmouseOver="javascript:this.className=\'optionhighlight\';" onmouseOut="javascript:this.className=\'option\';"><a href="javascript:document.forms[\'form_Gallery\'].Diaporama.value=\''. $ChildRelativePath .'\';document.forms[\'form_Gallery\'].submit();">' . $EscapedFileName . '</a></div>' . PHP_EOL;
-                }
-        }
-
-        return $Str;
-}
-
-function AddOptGroupGallery($Path, &$NbLine, $CurrentDiaporama = '')
-{
-        $ResolvedPath = ResolveGalleryDirectoryPath($Path);
-
-        if ($ResolvedPath === NULL)
-        {
-                return '';
-        }
-
-        $AbsolutePath = $ResolvedPath['absolute'];
-        $RelativePath = $ResolvedPath['relative'];
-        $ListeDir = scandir($AbsolutePath, 1);
-
-        if ($ListeDir === FALSE)
-        {
-                return '';
-        }
-
-        $Str = '';
-
-        foreach ($ListeDir as $file)
-        {
-                if (($file == "..")
-                        || ($file == ".")
-                        || IsIgnoredMediaEntry($file))
-                {
-                        continue;
-                }
-
-                $CandidateRelative = $RelativePath . '/' . $file;
-                $CandidatePath = ResolveGalleryDirectoryPath($CandidateRelative);
-
-                if ($CandidatePath === NULL)
-                {
-                        continue;
-                }
-
-                $NbLine++;
-                $EscapedFileName = htmlspecialchars($file, ENT_QUOTES, 'UTF-8');
-                $Str = $Str . '<div class="optgroup" >' . $EscapedFileName . '</div>' ;
-                $Str = $Str . AddOptionGallery($CandidatePath['relative'], $NbLine, $CurrentDiaporama);
-        }
-
-        return $Str;
 }
 
 ?>
