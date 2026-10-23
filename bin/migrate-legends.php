@@ -46,14 +46,44 @@ function LegacyHtmlToText($Html)
         return $Lines;
 }
 
+// Dossier Legend/ de l'album, quelle que soit sa casse (Legend, legend...)
+function FindLegendDirectory($AlbumPath)
+{
+        foreach (scandir($AlbumPath) as $Entry)
+        {
+                if ((strcasecmp($Entry, 'Legend') === 0) && is_dir($AlbumPath . '/' . $Entry))
+                {
+                        return $AlbumPath . '/' . $Entry;
+                }
+        }
+
+        return NULL;
+}
+
 function BuildLegendFile($AlbumPath)
 {
-        $LegendDirectory = $AlbumPath . '/Legend';
+        $LegendDirectory = FindLegendDirectory($AlbumPath);
         $Output = '';
 
-        if (is_file($LegendDirectory . '/Legend.html'))
+        if ($LegendDirectory === NULL)
         {
-                $IntroLines = LegacyHtmlToText(file_get_contents($LegendDirectory . '/Legend.html'));
+                return $Output;
+        }
+
+        // Fichiers de légende par nom en minuscules : photo.html, Photo.HTML...
+        $LegendFiles = array();
+
+        foreach (scandir($LegendDirectory) as $Entry)
+        {
+                if (is_file($LegendDirectory . '/' . $Entry))
+                {
+                        $LegendFiles[strtolower($Entry)] = $LegendDirectory . '/' . $Entry;
+                }
+        }
+
+        if (isset($LegendFiles['legend.html']))
+        {
+                $IntroLines = LegacyHtmlToText(file_get_contents($LegendFiles['legend.html']));
 
                 if (count($IntroLines) > 0)
                 {
@@ -71,11 +101,21 @@ function BuildLegendFile($AlbumPath)
                         continue;
                 }
 
-                // L'ancien site nommait la légende d'après le nom avant le premier point
+                // L'ancien site nommait la légende d'après le nom avant le premier point ;
+                // à défaut, le nom sans son extension (IMG_1.2.jpg -> IMG_1.2.html)
                 $Prefix = explode('.', $Entry);
-                $LegendPath = $LegendDirectory . '/' . $Prefix[0] . '.html';
+                $LegendPath = NULL;
 
-                if (is_file($LegendPath) === FALSE)
+                foreach (array($Prefix[0], pathinfo($Entry, PATHINFO_FILENAME)) as $Base)
+                {
+                        if (isset($LegendFiles[strtolower($Base) . '.html']))
+                        {
+                                $LegendPath = $LegendFiles[strtolower($Base) . '.html'];
+                                break;
+                        }
+                }
+
+                if ($LegendPath === NULL)
                 {
                         continue;
                 }
@@ -100,7 +140,7 @@ function BuildLegendFile($AlbumPath)
 
 function MigrateTree($Path, $DryRun, $Force, &$Count)
 {
-        if (is_dir($Path . '/Legend'))
+        if (FindLegendDirectory($Path) !== NULL)
         {
                 $Target = $Path . '/' . MEDIA_LEGEND_FILE;
                 $Content = BuildLegendFile($Path);

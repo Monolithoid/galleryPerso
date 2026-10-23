@@ -31,9 +31,10 @@ if (PHP_SAPI !== 'cli')
 require_once __DIR__ . '/../lib/media.php';
 
 // Version 2 : légendes EXIF « ASCII » et « UNICODE » mal décodées en version 1
-define('PROCESSOR_VERSION', 2);
+// Version 3 : données binaires des appareils prises pour des légendes
+define('PROCESSOR_VERSION', 3);
 // Fiches plus anciennes dont seules les légendes sont à relire
-define('PROCESSOR_CAPTION_FIX_VERSION', 1);
+define('PROCESSOR_CAPTION_FIX_VERSIONS', array(1, 2));
 
 $Options = getopt('v', array('once', 'interval:'));
 $Verbose = isset($Options['v']);
@@ -238,11 +239,19 @@ function CleanMetadataText($Value)
                 $Value = mb_convert_encoding($Value . ((strlen($Value) % 2) ? "\0" : ''), 'UTF-8', $Encoding);
         }
 
-        $Value = str_replace("\0", '', $Value);
+        // Octets nuls de remplissage en fin de champ
+        $Value = rtrim($Value, "\0");
 
         if (preg_match('//u', $Value) !== 1)
         {
-                $Value = mb_convert_encoding($Value, 'UTF-8', 'ISO-8859-1');
+                $Value = mb_convert_encoding($Value, 'UTF-8', 'Windows-1252');
+        }
+
+        // Caractères de contrôle : données binaires de l'appareil (réglages,
+        // MakerNote...) rangées dans le champ, pas une vraie légende
+        if (preg_match('/[\x{0000}-\x{0008}\x{000B}\x{000C}\x{000E}-\x{001F}\x{007F}-\x{009F}\x{FFFD}]/u', $Value) === 1)
+        {
+                return '';
         }
 
         $Value = trim($Value);
@@ -657,7 +666,7 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
 
                 if (is_array($OldManifest) && isset($OldManifest['items'])
                         && isset($OldManifest['version'])
-                        && in_array($OldManifest['version'], array(PROCESSOR_VERSION, PROCESSOR_CAPTION_FIX_VERSION), TRUE))
+                        && (($OldManifest['version'] === PROCESSOR_VERSION) || in_array($OldManifest['version'], PROCESSOR_CAPTION_FIX_VERSIONS, TRUE)))
                 {
                         $RefreshCaptions = ($OldManifest['version'] !== PROCESSOR_VERSION);
 

@@ -60,7 +60,7 @@ video_anniversaire.mp4: Les bougies
   Cette légende est copiée dans le champ `caption` de `album.json` (cache). Pour la relire, il suffit d'effacer le `album.json` de l'album (ou tout le cache) : le traitement suivant la reconstruit, et `legendes.txt` n'est jamais touché.
 - Les modifications de `legendes.txt` s'affichent immédiatement, sans attendre le traitement.
 
-Pour convertir les anciennes légendes (dossier `Legend/` avec un fichier HTML par photo) : `php bin/migrate-legends.php --dry-run` pour voir le résultat, puis sans `--dry-run` pour écrire les fichiers. Les anciens dossiers `Legend/`, `Small/` et `Middle/` ne sont pas supprimés, ils sont simplement ignorés par le site.
+Pour convertir les anciennes légendes (dossier `Legend/` ou `legend/` avec un fichier HTML par photo, `photo.html` pour `photo.jpg`) : `docker compose exec siteimageperso php bin/migrate-legends.php --dry-run` pour voir le résultat, puis sans `--dry-run` pour écrire les fichiers. Les anciens dossiers `Legend/`, `Small/` et `Middle/` ne sont pas supprimés, ils sont simplement ignorés par le site.
 
 ### Préparer un nouvel album
 1. Créer un dossier dans `GalleryPhotos/` ou `GalleryCreative/` (des sous-dossiers sont possibles) et y déposer les photos et vidéos telles quelles, sans conversion.
