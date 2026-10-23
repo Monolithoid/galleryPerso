@@ -295,6 +295,7 @@ img
 
 .media-grid li
 {
+        position: relative;
         min-width: 0;
 }
 
@@ -381,6 +382,43 @@ img
         color: #fff;
         font-size: 0.75rem;
         pointer-events: none;
+}
+
+.media-thumb__likes-count:empty
+{
+        display: none;
+}
+
+.media-thumb__likes--button
+{
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        min-height: 1.9rem;
+        padding: 0.15rem 0.55rem;
+        border: 0;
+        font: inherit;
+        font-size: 0.85rem;
+        cursor: pointer;
+        pointer-events: auto;
+}
+
+.media-thumb__likes--button:hover,
+.media-thumb__likes--button:focus-visible
+{
+        background: rgba(0, 0, 0, 0.8);
+        outline: none;
+}
+
+.media-thumb__likes--button.is-liked:hover,
+.media-thumb__likes--button.is-liked:focus-visible
+{
+        background: #e64980;
+}
+
+.media-thumb__likes--button:focus-visible
+{
+        box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--blue);
 }
 
 .media-thumb__likes[hidden]

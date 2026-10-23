@@ -472,26 +472,38 @@ function RenderMediaThumb($Index, $Item, $Key)
         $Html = '<li><button type="button" class="media-thumb media-thumb--' . EscapeHtml($Item['kind']) . '" data-index="' . $Index . '" data-media="' . EscapeHtml($Key) . '" title="' . EscapeHtml($Label) . '">';
         $Html .= '<img src="' . EscapeHtml($Item['thumb']) . '" width="' . (int) $Item['thumb_width'] . '" height="' . (int) $Item['thumb_height'] . '" alt="' . EscapeHtml($Label) . '" loading="lazy">';
         $Html .= RenderMediaTypeIcon($Item['kind']);
-        $Html .= RenderLikeBadge($Key);
 
         if ($Item['kind'] === 'video')
         {
                 $Html .= '<span class="media-thumb__badge">' . FormatMediaDuration($Item['duration']) . '</span>';
         }
 
-        return $Html . '</button></li>';
+        // À côté de la vignette et non dedans : un bouton ne peut pas en contenir un autre
+        return $Html . '</button>' . RenderLikeBadge($Key) . '</li>';
 }
 
-// Cœur et nombre de « j'aime » dans le coin d'une vignette (vide s'il n'y en a pas)
+/*
+ * Cœur et nombre de « j'aime » dans le coin d'une vignette. Une fois
+ * connecté, c'est un bouton (un clic aime, un second retire) ; sinon une
+ * simple pastille, cachée s'il n'y a pas de « j'aime ».
+ */
 function RenderLikeBadge($Key)
 {
         $Likes = LoadLikes();
         $Count = isset($Likes[$Key]) ? count($Likes[$Key]) : 0;
         $Mine = isset($Likes[$Key][GetConnectedEmail()]);
+        $Content = '<span class="media-thumb__likes-heart" aria-hidden="true">' . ($Mine ? '♥' : '♡') . '</span>'
+                . '<span class="media-thumb__likes-count">' . (($Count > 0) ? $Count : '') . '</span>';
+        $Classes = 'media-thumb__likes' . ($Mine ? ' is-liked' : '');
 
-        return '<span class="media-thumb__likes' . ($Mine ? ' is-liked' : '') . '"' . (($Count === 0) ? ' hidden' : '') . '>'
-                . '<span aria-hidden="true">♥</span> <span class="media-thumb__likes-count">' . $Count . '</span>'
-                . '<span class="visually-hidden"> j\'aime</span></span>';
+        if (GetConnectedEmail() === '')
+        {
+                return '<span class="' . $Classes . '"' . (($Count === 0) ? ' hidden' : '') . '>' . $Content
+                        . '<span class="visually-hidden"> j\'aime</span></span>';
+        }
+
+        return '<button type="button" class="' . $Classes . ' media-thumb__likes--button" data-media="' . EscapeHtml($Key) . '"'
+                . ' aria-pressed="' . ($Mine ? 'true' : 'false') . '" aria-label="J\'aime">' . $Content . '</button>';
 }
 
 // Médias de la page pour la visionneuse (script/viewer.js)

@@ -65,6 +65,7 @@
         function Viewer(items, likesUrl) {
                 this.items = items;
                 this.likesUrl = likesUrl;
+                this.likeBusy = {};
                 this.index = -1;
                 this.build();
         }
@@ -267,7 +268,8 @@
         };
 
         Viewer.prototype.renderLike = function () {
-                if (!this.likeButton) {
+                // Visionneuse fermée : clic sur le cœur d'une vignette
+                if (!this.likeButton || this.index < 0) {
                         return;
                 }
 
@@ -288,37 +290,40 @@
                         }
                 }
 
-                var thumbs = document.querySelectorAll('.media-thumb');
+                var badges = document.querySelectorAll('.media-thumb__likes[data-media]');
 
-                for (var thumbIndex = 0; thumbIndex < thumbs.length; thumbIndex++) {
-                        if (thumbs[thumbIndex].getAttribute('data-media') !== key) {
+                for (var badgeIndex = 0; badgeIndex < badges.length; badgeIndex++) {
+                        var badge = badges[badgeIndex];
+
+                        if (badge.getAttribute('data-media') !== key) {
                                 continue;
                         }
 
-                        var badge = thumbs[thumbIndex].querySelector('.media-thumb__likes');
-
-                        if (badge) {
-                                badge.hidden = likes === 0;
-                                badge.classList.toggle('is-liked', liked);
-                                badge.querySelector('.media-thumb__likes-count').textContent = likes;
-                        }
+                        badge.classList.toggle('is-liked', liked);
+                        badge.setAttribute('aria-pressed', liked ? 'true' : 'false');
+                        badge.querySelector('.media-thumb__likes-heart').textContent = liked ? '♥' : '♡';
+                        badge.querySelector('.media-thumb__likes-count').textContent = likes > 0 ? likes : '';
                 }
 
                 this.renderLike();
         };
 
         Viewer.prototype.toggleLike = function () {
-                var self = this;
-                var item = this.items[this.index];
+                this.toggleItemLike(this.items[this.index]);
+        };
 
-                if (!item || this.likeBusy) {
+        // Depuis la visionneuse ou le cœur d'une vignette
+        Viewer.prototype.toggleItemLike = function (item) {
+                var self = this;
+
+                if (!item || this.likeBusy[item.key]) {
                         return;
                 }
 
                 // Affiché tout de suite, corrigé par la réponse du serveur
                 var wasLiked = item.liked;
                 var oldLikes = item.likes;
-                this.likeBusy = true;
+                this.likeBusy[item.key] = true;
                 this.updateItems(item.key, !wasLiked, Math.max(0, oldLikes + (wasLiked ? -1 : 1)));
 
                 var body = new URLSearchParams();
@@ -341,7 +346,7 @@
                         console.error('« J\'aime » non enregistré.', error);
                         self.updateItems(item.key, wasLiked, oldLikes);
                 }).then(function () {
-                        self.likeBusy = false;
+                        self.likeBusy[item.key] = false;
                 });
         };
 
@@ -424,6 +429,21 @@
                 for (var index = 0; index < thumbs.length; index++) {
                         thumbs[index].addEventListener('click', function () {
                                 viewer.open(parseInt(this.getAttribute('data-index'), 10));
+                        });
+                }
+
+                var likeButtons = document.querySelectorAll('.media-thumb__likes--button');
+
+                for (var buttonIndex = 0; buttonIndex < likeButtons.length; buttonIndex++) {
+                        likeButtons[buttonIndex].addEventListener('click', function () {
+                                var key = this.getAttribute('data-media');
+
+                                for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
+                                        if (items[itemIndex].key === key) {
+                                                viewer.toggleItemLike(items[itemIndex]);
+                                                return;
+                                        }
+                                }
                         });
                 }
 
