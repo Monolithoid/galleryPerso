@@ -34,9 +34,62 @@ function GetConnectedEmail()
         return strtolower(trim((string) ($_SERVER['HTTP_X_FORWARDED_EMAIL'] ?? '')));
 }
 
-// Nom affiché : la partie de l'adresse avant « @ »
+function GetEmailsFilePath()
+{
+        $Configured = getenv('SITEIMAGEPERSO_EMAILS_FILE');
+
+        if (($Configured !== FALSE) && ($Configured !== ''))
+        {
+                return $Configured;
+        }
+
+        return '/config/emails.txt';
+}
+
+/*
+ * Prénoms de la liste des adresses autorisées (emails.txt, lu aussi par
+ * oauth2-proxy, qui n'en garde que la première colonne) :
+ *   adresse@gmail.com, Prénom
+ * Renvoie array(adresse en minuscules => prénom).
+ */
+function LoadFirstNames()
+{
+        static $Names = NULL;
+
+        if ($Names !== NULL)
+        {
+                return $Names;
+        }
+
+        $Names = array();
+        $Lines = @file(GetEmailsFilePath(), FILE_IGNORE_NEW_LINES);
+
+        foreach (($Lines === FALSE) ? array() : $Lines as $Line)
+        {
+                $Fields = explode(',', $Line);
+                $Email = strtolower(trim($Fields[0]));
+
+                if (($Email === '') || ($Email[0] === '#') || (count($Fields) < 2) || (trim($Fields[1]) === ''))
+                {
+                        continue;
+                }
+
+                $Names[$Email] = trim($Fields[1]);
+        }
+
+        return $Names;
+}
+
+// Nom affiché : le prénom de emails.txt, sinon la partie de l'adresse avant « @ »
 function GetLikerLabel($Email)
 {
+        $Names = LoadFirstNames();
+
+        if (isset($Names[strtolower($Email)]))
+        {
+                return $Names[strtolower($Email)];
+        }
+
         $Parts = explode('@', $Email, 2);
 
         return $Parts[0];
