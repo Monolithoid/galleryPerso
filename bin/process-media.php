@@ -30,7 +30,10 @@ if (PHP_SAPI !== 'cli')
 
 require_once __DIR__ . '/../lib/media.php';
 
-define('PROCESSOR_VERSION', 1);
+// Version 2 : légendes EXIF « ASCII » et « UNICODE » mal décodées en version 1
+define('PROCESSOR_VERSION', 2);
+// Fiches plus anciennes dont seules les légendes sont à relire
+define('PROCESSOR_CAPTION_FIX_VERSION', 1);
 
 $Options = getopt('v', array('once', 'interval:'));
 $Verbose = isset($Options['v']);
@@ -164,6 +167,46 @@ function CreateJpegVersion($SourcePath, $DestinationPath, $Size)
         return TRUE;
 }
 
+// Ordre des octets d'un texte UTF-16 : 'UTF-16LE', 'UTF-16BE' ou NULL si ce n'en est pas
+function DetectUtf16($Value)
+{
+        // Les octets nuls de fin ne sont que du remplissage
+        $Core = rtrim($Value, "\0");
+
+        if ($Core === '')
+        {
+                return NULL;
+        }
+
+        if ((strlen($Core) % 2) === 1)
+        {
+                $Core .= "\0";
+        }
+
+        $Pairs = strlen($Core) / 2;
+        $EvenZeros = 0;
+        $OddZeros = 0;
+
+        for ($Index = 0; $Index < strlen($Core); $Index += 2)
+        {
+                $EvenZeros += ($Core[$Index] === "\0") ? 1 : 0;
+                $OddZeros += ($Core[$Index + 1] === "\0") ? 1 : 0;
+        }
+
+        // Texte latin : un octet sur deux est nul, toujours du même côté
+        if (($EvenZeros === 0) && ($OddZeros * 2 >= $Pairs))
+        {
+                return 'UTF-16LE';
+        }
+
+        if (($OddZeros === 0) && ($EvenZeros * 2 >= $Pairs))
+        {
+                return 'UTF-16BE';
+        }
+
+        return NULL;
+}
+
 function CleanMetadataText($Value)
 {
         if (is_array($Value))
@@ -172,25 +215,37 @@ function CleanMetadataText($Value)
         }
 
         $Value = (string) $Value;
+        $Encoding = DetectUtf16($Value);
 
-        // Windows XPComment / XPTitle : UTF-16LE
-        if ((strlen($Value) > 1) && (strpos($Value, "\0") !== FALSE))
-        {
-                $Value = mb_convert_encoding($Value, 'UTF-8', 'UTF-16LE');
-        }
-
-        // UserComment : préfixe de 8 octets indiquant le jeu de caractères
-        if (preg_match('/^(ASCII|UNICODE|JIS)\0{0,3}/', $Value, $Matches) === 1)
+        // UserComment : préfixe de 8 octets indiquant le jeu de caractères,
+        // à retirer avant de chercher de l'UTF-16 (sinon « ASCII\0\0\0 »
+        // fait lire tout le texte comme de l'UTF-16 et donne des idéogrammes)
+        if (preg_match('/^(ASCII\0\0\0|UNICODE\0|JIS\0\0\0\0\0|\0{8})/', $Value, $Matches) === 1)
         {
                 $Value = substr($Value, 8);
+                $Encoding = DetectUtf16($Value);
+
+                if (($Matches[1] === "UNICODE\0") && ($Encoding === NULL) && (strlen(rtrim($Value, "\0")) > 1))
+                {
+                        $Encoding = 'UTF-16LE';
+                }
         }
+
+        // Windows XPComment / XPTitle, UserComment en UNICODE
+        if ($Encoding !== NULL)
+        {
+                $Value = rtrim($Value, "\0");
+                $Value = mb_convert_encoding($Value . ((strlen($Value) % 2) ? "\0" : ''), 'UTF-8', $Encoding);
+        }
+
+        $Value = str_replace("\0", '', $Value);
 
         if (preg_match('//u', $Value) !== 1)
         {
                 $Value = mb_convert_encoding($Value, 'UTF-8', 'ISO-8859-1');
         }
 
-        $Value = trim(str_replace("\0", '', $Value));
+        $Value = trim($Value);
 
         // Textes génériques écrits par les appareils photo
         if (preg_match('/^(OLYMPUS DIGITAL CAMERA|SONY DSC|DCIM|default|untitled|Image)$/i', $Value) === 1)
@@ -227,7 +282,8 @@ function ReadImageMetadata($SourcePath)
                 }
         }
 
-        foreach (array('ImageDescription', 'XPComment', 'UserComment', 'XPTitle') as $Key)
+        // exif_read_data nomme XPComment « Comments » et XPTitle « Title »
+        foreach (array('ImageDescription', 'Comments', 'XPComment', 'UserComment', 'Title', 'XPTitle') as $Key)
         {
                 if (isset($Exif[$Key]))
                 {
@@ -442,6 +498,36 @@ function TranscodeVideo($SourcePath, $DestinationPath, $HasAudio)
         return TRUE;
 }
 
+function GetVideoCaption($Tags)
+{
+        foreach (array('description', 'comment', 'title') as $Key)
+        {
+                if (isset($Tags[$Key]) && (CleanMetadataText($Tags[$Key]) !== ''))
+                {
+                        return CleanMetadataText($Tags[$Key]);
+                }
+        }
+
+        return '';
+}
+
+// Relit la légende d'un média déjà traité, sans refaire vignettes ni vidéos
+function RefreshMediaCaption($SourcePath, $Item)
+{
+        if ($Item['kind'] === 'image')
+        {
+                $Metadata = ReadImageMetadata($SourcePath);
+                $Item['caption'] = $Metadata['caption'];
+        }
+        else
+        {
+                $Probe = ProbeVideo($SourcePath);
+                $Item['caption'] = ($Probe !== NULL) ? GetVideoCaption($Probe['tags']) : '';
+        }
+
+        return $Item;
+}
+
 function ProcessVideo($SourcePath, $CacheDirectory, $AlbumCacheUrl, $AlbumSourceUrl, $Name, $Mime)
 {
         $Probe = ProbeVideo($SourcePath);
@@ -501,16 +587,7 @@ function ProcessVideo($SourcePath, $CacheDirectory, $AlbumCacheUrl, $AlbumSource
                 $Taken = date('Y-m-d\TH:i:s', strtotime($Probe['tags']['creation_time']));
         }
 
-        $Caption = '';
-
-        foreach (array('description', 'comment', 'title') as $Key)
-        {
-                if (isset($Probe['tags'][$Key]) && (CleanMetadataText($Probe['tags'][$Key]) !== ''))
-                {
-                        $Caption = CleanMetadataText($Probe['tags'][$Key]);
-                        break;
-                }
-        }
+        $Caption = GetVideoCaption($Probe['tags']);
 
         return array(
                 'kind' => 'video',
@@ -571,6 +648,7 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
 
         $Previous = array();
         $PreviousFailed = array();
+        $RefreshCaptions = FALSE;
         $ManifestPath = $CacheDirectory . '/' . MEDIA_MANIFEST_NAME;
 
         if (is_file($ManifestPath))
@@ -578,8 +656,11 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
                 $OldManifest = json_decode((string) file_get_contents($ManifestPath), TRUE);
 
                 if (is_array($OldManifest) && isset($OldManifest['items'])
-                        && isset($OldManifest['version']) && ($OldManifest['version'] === PROCESSOR_VERSION))
+                        && isset($OldManifest['version'])
+                        && in_array($OldManifest['version'], array(PROCESSOR_VERSION, PROCESSOR_CAPTION_FIX_VERSION), TRUE))
                 {
+                        $RefreshCaptions = ($OldManifest['version'] !== PROCESSOR_VERSION);
+
                         foreach ($OldManifest['items'] as $OldItem)
                         {
                                 $Previous[$OldItem['name']] = $OldItem;
@@ -627,6 +708,13 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
                         && is_file($CacheDirectory . '/' . $Entry . '.thumb.jpg'))
                 {
                         $Items[$Entry] = $Previous[$Entry];
+
+                        if ($RefreshCaptions === TRUE)
+                        {
+                                $Items[$Entry] = RefreshMediaCaption($EntryPath, $Items[$Entry]);
+                                $Changed = TRUE;
+                        }
+
                         continue;
                 }
 

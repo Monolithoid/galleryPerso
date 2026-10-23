@@ -57,6 +57,7 @@ video_anniversaire.mp4: Les bougies
 - Les lignes avant la première légende forment l'introduction de l'album.
 - Une légende s'écrit `nom_du_fichier: texte`. Les lignes qui commencent par `#` sont ignorées.
 - Si une photo n'a pas de légende dans `legendes.txt`, le site reprend celle de ses métadonnées (EXIF), si elle existe.
+  Cette légende est copiée dans le champ `caption` de `album.json` (cache). Pour la relire, il suffit d'effacer le `album.json` de l'album (ou tout le cache) : le traitement suivant la reconstruit, et `legendes.txt` n'est jamais touché.
 - Les modifications de `legendes.txt` s'affichent immédiatement, sans attendre le traitement.
 
 Pour convertir les anciennes légendes (dossier `Legend/` avec un fichier HTML par photo) : `php bin/migrate-legends.php --dry-run` pour voir le résultat, puis sans `--dry-run` pour écrire les fichiers. Les anciens dossiers `Legend/`, `Small/` et `Middle/` ne sont pas supprimés, ils sont simplement ignorés par le site.
