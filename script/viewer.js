@@ -8,6 +8,11 @@
  *
  * Bouton « j'aime » (si le bloc JSON porte data-likes) : un clic aime le
  * média, un second clic retire le « j'aime ». La touche L fait de même.
+ *
+ * Boutons de rotation (si le bloc JSON porte data-rotate) : tournent la
+ * photo d'un quart de tour, à gauche ou à droite. Le serveur refait ses
+ * vignette et aperçu ; l'original n'est pas modifié. Touche R : à droite,
+ * Maj + R : à gauche.
  */
 (function () {
         'use strict';
@@ -62,10 +67,12 @@
                 return element;
         }
 
-        function Viewer(items, likesUrl) {
+        function Viewer(items, likesUrl, rotateUrl) {
                 this.items = items;
                 this.likesUrl = likesUrl;
+                this.rotateUrl = rotateUrl;
                 this.likeBusy = {};
+                this.rotateBusy = {};
                 this.index = -1;
                 this.build();
         }
@@ -88,6 +95,17 @@
                         this.likeButton = createElement('button', 'viewer__button viewer__like', { type: 'button', 'aria-pressed': 'false' });
                         this.likeButton.addEventListener('click', function () { self.toggleLike(); });
                         bar.appendChild(this.likeButton);
+                }
+
+                if (this.rotateUrl) {
+                        this.rotateLeftButton = createElement('button', 'viewer__button viewer__rotate', { type: 'button', 'aria-label': 'Tourner à gauche', title: 'Tourner à gauche (Maj + R)' });
+                        this.rotateLeftButton.textContent = '↺';
+                        this.rotateLeftButton.addEventListener('click', function () { self.rotate(-90); });
+                        this.rotateRightButton = createElement('button', 'viewer__button viewer__rotate', { type: 'button', 'aria-label': 'Tourner à droite', title: 'Tourner à droite (R)' });
+                        this.rotateRightButton.textContent = '↻';
+                        this.rotateRightButton.addEventListener('click', function () { self.rotate(90); });
+                        bar.appendChild(this.rotateLeftButton);
+                        bar.appendChild(this.rotateRightButton);
                 }
 
                 bar.appendChild(this.originalLink);
@@ -132,6 +150,8 @@
                                 self.close();
                         } else if ((event.key === 'l' || event.key === 'L') && self.likeButton) {
                                 self.toggleLike();
+                        } else if ((event.key === 'r' || event.key === 'R') && self.rotateUrl && !event.ctrlKey && !event.metaKey) {
+                                self.rotate(event.shiftKey ? -90 : 90);
                         }
                 });
 
@@ -257,6 +277,7 @@
                 }
 
                 this.renderLike();
+                this.renderRotate();
 
                 if (this.root.hidden) {
                         this.root.hidden = false;
@@ -350,6 +371,94 @@
                 });
         };
 
+        Viewer.prototype.renderRotate = function () {
+                if (!this.rotateUrl || this.index < 0) {
+                        return;
+                }
+
+                var item = this.items[this.index];
+                var busy = !!this.rotateBusy[item.key];
+
+                this.rotateLeftButton.hidden = !item.rotatable;
+                this.rotateRightButton.hidden = !item.rotatable;
+                this.rotateLeftButton.disabled = busy;
+                this.rotateRightButton.disabled = busy;
+                this.stage.classList.toggle('is-busy', busy);
+        };
+
+        // Le serveur refait vignette et aperçu (une ou deux secondes), puis on les recharge
+        Viewer.prototype.rotate = function (degrees) {
+                var self = this;
+                var item = this.items[this.index];
+
+                if (!item || !item.rotatable || this.rotateBusy[item.key]) {
+                        return;
+                }
+
+                var key = item.key;
+                this.rotateBusy[key] = true;
+                this.renderRotate();
+
+                var body = new URLSearchParams();
+                body.append('media', key);
+                body.append('degrees', String(degrees));
+
+                fetch(this.rotateUrl, {
+                        method: 'POST',
+                        headers: { 'X-Galerie-Rotate': '1' },
+                        body: body,
+                        credentials: 'same-origin'
+                }).then(function (response) {
+                        if (!response.ok) {
+                                throw new Error('Réponse ' + response.status);
+                        }
+
+                        return response.json();
+                }).then(function (result) {
+                        self.rotateBusy[key] = false;
+                        self.updateRotation(key, result);
+                }).catch(function (error) {
+                        console.error('Rotation non enregistrée.', error);
+                        self.rotateBusy[key] = false;
+                        self.renderRotate();
+                });
+        };
+
+        // Même média, mêmes vignettes : il peut figurer dans plusieurs rubriques de l'accueil
+        Viewer.prototype.updateRotation = function (key, result) {
+                for (var index = 0; index < this.items.length; index++) {
+                        var item = this.items[index];
+
+                        if (item.key === key) {
+                                item.src = result.item.src;
+                                item.original = result.item.original;
+                                item.width = result.item.width;
+                                item.height = result.item.height;
+                        }
+                }
+
+                var thumbs = document.querySelectorAll('.media-thumb[data-media]');
+
+                for (var thumbIndex = 0; thumbIndex < thumbs.length; thumbIndex++) {
+                        var image = thumbs[thumbIndex].querySelector('img');
+
+                        if (thumbs[thumbIndex].getAttribute('data-media') !== key || !image) {
+                                continue;
+                        }
+
+                        image.src = result.thumb;
+                        image.width = result.thumb_width;
+                        image.height = result.thumb_height;
+                }
+
+                // Toujours sur cette photo : on l'affiche tournée
+                if (!this.root.hidden && this.items[this.index].key === key) {
+                        this.show(this.index);
+                } else {
+                        this.renderRotate();
+                }
+        };
+
         Viewer.prototype.preload = function (index) {
                 var item = this.items[(index + this.items.length) % this.items.length];
 
@@ -423,7 +532,7 @@
                         return;
                 }
 
-                var viewer = new Viewer(items, data.getAttribute('data-likes'));
+                var viewer = new Viewer(items, data.getAttribute('data-likes'), data.getAttribute('data-rotate'));
                 var thumbs = document.querySelectorAll('.media-thumb');
 
                 for (var index = 0; index < thumbs.length; index++) {

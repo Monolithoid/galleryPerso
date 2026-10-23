@@ -2,7 +2,7 @@
 /*
  * Outils partagés entre le site et le traitement en arrière-plan
  * (bin/process-media.php) : emplacement des galeries et du cache,
- * détection du format des médias, lecture des légendes.
+ * détection du format des médias, préparation des versions JPEG.
  *
  * Les originaux ne sont jamais modifiés : tout ce qui est calculé
  * (vignettes, aperçus, vidéos converties, fiche album.json) est rangé
@@ -140,6 +140,12 @@ function NormalizeAlbumRelativePath($RelativePath)
         return trim($RelativePath, '/');
 }
 
+// Clé d'un média : chemin de son album suivi de son nom de fichier
+function GetMediaKey($AlbumPath, $Name)
+{
+        return NormalizeAlbumRelativePath($AlbumPath) . '/' . $Name;
+}
+
 function GetAlbumCacheDirectory($RelativePath)
 {
         return GetMediaCacheDirectory() . '/' . NormalizeAlbumRelativePath($RelativePath);
@@ -243,6 +249,101 @@ function DetectMediaKind($AbsolutePath, $FileInfo = NULL)
         }
 
         return array('kind' => NULL, 'mime' => $Mime);
+}
+
+// Seuls les quarts de tour sont possibles : 0, 90, 180 ou 270 (sens des aiguilles d'une montre)
+function NormalizeMediaRotation($Degrees)
+{
+        $Degrees = (((int) $Degrees % 360) + 360) % 360;
+
+        return in_array($Degrees, array(90, 180, 270), TRUE) ? $Degrees : 0;
+}
+
+function RunMediaCommand($Arguments, &$Output = NULL, &$Errors = NULL)
+{
+        // Sans shell et en locale UTF-8 : sinon les noms accentués
+        // (« Noël », « Vacances à la mer ») sont refusés ou abîmés
+        $Descriptors = array(1 => array('pipe', 'w'), 2 => array('pipe', 'w'));
+        // VIPS_CONCURRENCY=1 : une image à la fois, mémoire minimale
+        $Environment = array_merge(array('VIPS_CONCURRENCY' => '1'), getenv(), array('LC_ALL' => 'C.UTF-8'));
+        $Process = proc_open($Arguments, $Descriptors, $Pipes, NULL, $Environment);
+
+        if (is_resource($Process) === FALSE)
+        {
+                $Output = '';
+                $Errors = $Arguments[0] . ' introuvable';
+
+                return 127;
+        }
+
+        $Output = stream_get_contents($Pipes[1]);
+        $Errors = stream_get_contents($Pipes[2]);
+        fclose($Pipes[1]);
+        fclose($Pipes[2]);
+
+        return proc_close($Process);
+}
+
+// Première ligne utile de la sortie d'erreur d'un outil, sans le chemin du fichier
+function SummarizeToolError($Errors, $SourcePath)
+{
+        $Errors = str_replace($SourcePath, basename($SourcePath), (string) $Errors);
+
+        foreach (preg_split('/\R/', $Errors) as $Line)
+        {
+                // « [mov,mp4,m4a @ 0x55d0c8e2] moov atom not found » : garde le message
+                $Line = trim(preg_replace('/^\[[^\]]* @ 0x[0-9a-f]+\]\s*/', '', $Line));
+
+                if ($Line !== '')
+                {
+                        return mb_strimwidth($Line, 0, 200, '…');
+                }
+        }
+
+        return '';
+}
+
+/*
+ * Version JPEG d'une image dans un carré de $Size pixels ($Size = 0 :
+ * pleine taille), orientation EXIF corrigée puis tournée de $Rotation
+ * degrés. vips sait lire JPEG, PNG, WebP, HEIC, AVIF, TIFF et GIF.
+ * Renvoie '' si tout va bien, sinon la raison de l'échec.
+ */
+function RenderJpegVersion($SourcePath, $DestinationPath, $Size, $Rotation = 0)
+{
+        $TemporaryPath = dirname($DestinationPath) . '/.tmp' . getmypid() . '-' . basename($DestinationPath);
+        $Target = $TemporaryPath . '[Q=82,strip]';
+        $Rotation = NormalizeMediaRotation($Rotation);
+        // Tournée après coup : l'étape intermédiaire, au format vips, ne perd rien
+        $Intermediate = ($Rotation !== 0) ? $TemporaryPath . '.v' : NULL;
+        $FirstTarget = ($Intermediate !== NULL) ? $Intermediate : $Target;
+        $Arguments = array('vipsthumbnail', $SourcePath, '--size', $Size . 'x' . $Size . '>', '-o', $FirstTarget);
+
+        if ($Size === 0)
+        {
+                $Arguments = array('vips', 'autorot', $SourcePath, $FirstTarget);
+        }
+
+        $Errors = '';
+        $Success = (RunMediaCommand($Arguments, $Output, $Errors) === 0);
+
+        if ($Success && ($Intermediate !== NULL))
+        {
+                $Success = (RunMediaCommand(array('vips', 'rot', $Intermediate, $Target, 'd' . $Rotation), $Output, $Errors) === 0);
+                @unlink($Intermediate);
+        }
+
+        if (($Success === FALSE) || (is_file($TemporaryPath) === FALSE))
+        {
+                @unlink($TemporaryPath);
+                $Detail = SummarizeToolError($Errors, $SourcePath);
+
+                return 'image illisible par vips' . (($Detail !== '') ? ' : ' . $Detail : '');
+        }
+
+        rename($TemporaryPath, $DestinationPath);
+
+        return '';
 }
 
 ?>

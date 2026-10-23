@@ -626,6 +626,24 @@ img
         background: #e64980;
 }
 
+.viewer__button[hidden]
+{
+        display: none;
+}
+
+.viewer__button:disabled
+{
+        opacity: 0.5;
+        cursor: progress;
+}
+
+/* Photo en cours de rotation par le serveur */
+.viewer__stage.is-busy img
+{
+        opacity: 0.5;
+        transition: opacity 0.2s;
+}
+
 .viewer__album
 {
         display: block;

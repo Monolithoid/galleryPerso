@@ -12,6 +12,10 @@
  *                       pas lisible par les navigateurs
  *   - album.json        fiche de l'album lue par le site
  *
+ * Une photo tournée depuis la visionneuse (voir lib/rotations.php) a ses
+ * vignette, aperçu et version pleine taille tournés ; l'original reste
+ * tel quel.
+ *
  * La liste des médias en erreur est réécrite à chaque passage dans
  * SITEIMAGEPERSO_ERROR_REPORT (/config/journal/medias-en-erreur.txt par
  * défaut), si son dossier existe.
@@ -29,6 +33,7 @@ if (PHP_SAPI !== 'cli')
 }
 
 require_once __DIR__ . '/../lib/media.php';
+require_once __DIR__ . '/../lib/rotations.php';
 
 // Version 5 : plus de légendes, le champ caption des fiches est retiré
 define('PROCESSOR_VERSION', 5);
@@ -69,52 +74,13 @@ function NoteFailure($Reason)
         $FailureReason = $Reason;
 }
 
-// Première ligne utile de la sortie d'erreur d'un outil, sans le chemin du fichier
-function SummarizeToolError($Errors, $SourcePath)
-{
-        $Errors = str_replace($SourcePath, basename($SourcePath), (string) $Errors);
-
-        foreach (preg_split('/\R/', $Errors) as $Line)
-        {
-                // « [mov,mp4,m4a @ 0x55d0c8e2] moov atom not found » : garde le message
-                $Line = trim(preg_replace('/^\[[^\]]* @ 0x[0-9a-f]+\]\s*/', '', $Line));
-
-                if ($Line !== '')
-                {
-                        return mb_strimwidth($Line, 0, 200, '…');
-                }
-        }
-
-        return '';
-}
-
 function RunCommand($Arguments, &$Output = NULL, &$Errors = NULL)
 {
-        // Sans shell et en locale UTF-8 : sinon les noms accentués
-        // (« Noël », « Vacances à la mer ») sont refusés ou abîmés
-        $Command = implode(' ', $Arguments);
-        $Descriptors = array(1 => array('pipe', 'w'), 2 => array('pipe', 'w'));
-        // VIPS_CONCURRENCY=1 : une image à la fois, mémoire minimale
-        $Environment = array_merge(array('VIPS_CONCURRENCY' => '1'), getenv(), array('LC_ALL' => 'C.UTF-8'));
-        $Process = proc_open($Arguments, $Descriptors, $Pipes, NULL, $Environment);
-
-        if (is_resource($Process) === FALSE)
-        {
-                $Output = '';
-                $Errors = $Arguments[0] . ' introuvable';
-
-                return 127;
-        }
-
-        $Output = stream_get_contents($Pipes[1]);
-        $Errors = stream_get_contents($Pipes[2]);
-        fclose($Pipes[1]);
-        fclose($Pipes[2]);
-        $ExitCode = proc_close($Process);
+        $ExitCode = RunMediaCommand($Arguments, $Output, $Errors);
 
         if ($ExitCode !== 0)
         {
-                DebugLine('Échec (' . $ExitCode . ') : ' . $Command . PHP_EOL . trim($Errors));
+                DebugLine('Échec (' . $ExitCode . ') : ' . implode(' ', $Arguments) . PHP_EOL . trim($Errors));
         }
 
         return $ExitCode;
@@ -139,30 +105,18 @@ function WriteFileAtomically($Path, $Content)
  * Images
  */
 
-// vipsthumbnail applique l'orientation EXIF et sait lire JPEG, PNG, WebP, HEIC, AVIF, TIFF, GIF
-function CreateJpegVersion($SourcePath, $DestinationPath, $Size)
+// Voir RenderJpegVersion() dans lib/media.php
+function CreateJpegVersion($SourcePath, $DestinationPath, $Size, $Rotation = 0)
 {
-        $TemporaryPath = dirname($DestinationPath) . '/.tmp' . getmypid() . '-' . basename($DestinationPath);
-        $Target = $TemporaryPath . '[Q=82,strip]';
-        $Arguments = array('vipsthumbnail', $SourcePath, '--size', $Size . 'x' . $Size . '>', '-o', $Target);
+        $Failure = RenderJpegVersion($SourcePath, $DestinationPath, $Size, $Rotation);
 
-        if ($Size === 0)
+        if ($Failure !== '')
         {
-                $Arguments = array('vips', 'autorot', $SourcePath, $Target);
-        }
-
-        $Errors = '';
-
-        if ((RunCommand($Arguments, $Output, $Errors) !== 0) || (is_file($TemporaryPath) === FALSE))
-        {
-                @unlink($TemporaryPath);
-                $Detail = SummarizeToolError($Errors, $SourcePath);
-                NoteFailure('image illisible par vips' . (($Detail !== '') ? ' : ' . $Detail : ''));
+                DebugLine('Échec : ' . $Failure);
+                NoteFailure($Failure);
 
                 return FALSE;
         }
-
-        rename($TemporaryPath, $DestinationPath);
 
         return TRUE;
 }
@@ -196,13 +150,13 @@ function ReadImageMetadata($SourcePath)
         return $Metadata;
 }
 
-function ProcessImage($SourcePath, $CacheDirectory, $AlbumCacheUrl, $Name, $Mime)
+function ProcessImage($SourcePath, $CacheDirectory, $AlbumCacheUrl, $Name, $Mime, $Rotation)
 {
         $ThumbName = $Name . '.thumb.jpg';
         $PreviewName = $Name . '.preview.jpg';
 
-        if ((CreateJpegVersion($SourcePath, $CacheDirectory . '/' . $ThumbName, MEDIA_THUMB_SIZE) === FALSE)
-                || (CreateJpegVersion($SourcePath, $CacheDirectory . '/' . $PreviewName, MEDIA_PREVIEW_SIZE) === FALSE))
+        if ((CreateJpegVersion($SourcePath, $CacheDirectory . '/' . $ThumbName, MEDIA_THUMB_SIZE, $Rotation) === FALSE)
+                || (CreateJpegVersion($SourcePath, $CacheDirectory . '/' . $PreviewName, MEDIA_PREVIEW_SIZE, $Rotation) === FALSE))
         {
                 return NULL;
         }
@@ -212,7 +166,9 @@ function ProcessImage($SourcePath, $CacheDirectory, $AlbumCacheUrl, $Name, $Mime
                 'mime' => $Mime,
                 'thumb' => $AlbumCacheUrl . '/' . rawurlencode($ThumbName),
                 'preview' => $AlbumCacheUrl . '/' . rawurlencode($PreviewName),
-                'full' => NULL
+                'full' => NULL,
+                // Rotation appliquée aux fichiers du cache
+                'rotation' => $Rotation
         );
 
         // GIF animés : la visionneuse affiche l'original pour garder l'animation
@@ -225,7 +181,7 @@ function ProcessImage($SourcePath, $CacheDirectory, $AlbumCacheUrl, $Name, $Mime
         {
                 $FullName = $Name . '.full.jpg';
 
-                if (CreateJpegVersion($SourcePath, $CacheDirectory . '/' . $FullName, 0) === TRUE)
+                if (CreateJpegVersion($SourcePath, $CacheDirectory . '/' . $FullName, 0, $Rotation) === TRUE)
                 {
                         $Item['full'] = $AlbumCacheUrl . '/' . rawurlencode($FullName);
                 }
@@ -533,6 +489,8 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
                 }
         }
 
+        // Relu à chaque album : une rotation demandée entre-temps est prise en compte
+        $Rotations = ReadRotations();
         $FileInfo = finfo_open(FILEINFO_MIME_TYPE);
         $Items = array();
         $Failed = array();
@@ -561,10 +519,12 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
 
                 $Size = filesize($EntryPath);
                 $ModifiedAt = filemtime($EntryPath);
+                $Rotation = GetMediaRotation(GetMediaKey($RelativePath, $Entry), $Rotations);
 
                 if (isset($Previous[$Entry])
                         && ($Previous[$Entry]['size'] === $Size)
                         && ($Previous[$Entry]['mtime'] === $ModifiedAt)
+                        && (($Previous[$Entry]['kind'] === 'video') || (GetAppliedRotation($Previous[$Entry]) === $Rotation))
                         && is_file($CacheDirectory . '/' . $Entry . '.thumb.jpg'))
                 {
                         $Items[$Entry] = $Previous[$Entry];
@@ -608,7 +568,7 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
 
                 if ($Detection['kind'] === 'image')
                 {
-                        $Item = ProcessImage($EntryPath, $CacheDirectory, $AlbumCacheUrl, $Entry, $Detection['mime']);
+                        $Item = ProcessImage($EntryPath, $CacheDirectory, $AlbumCacheUrl, $Entry, $Detection['mime'], $Rotation);
                 }
                 else
                 {

@@ -15,12 +15,14 @@ services:
       - "${SITEIMAGEPERSO_GALLERY_CREATIVE:-./GalleryCreative}:/var/www/html/GalleryCreative"
       # Vignettes, aperçus et vidéos converties : peut être effacé, il se reconstruit
       - "${SITEIMAGEPERSO_CACHE:-./cache}:/var/www/html/cache"
-      # Liste des médias en erreur de traitement (medias-en-erreur.txt) et
-      # « j'aime » de chacun (likes.json). Seuls ces sous-dossiers de la
+      # Liste des médias en erreur de traitement (medias-en-erreur.txt),
+      # « j'aime » de chacun (likes.json) et photos tournées depuis la
+      # visionneuse (rotations.json). Seuls ces sous-dossiers de la
       # configuration sont accessibles en écriture : le site ne peut pas
       # toucher à emails.txt
       - "${SITEIMAGEPERSO_CONFIG:-./config}/journal:/config/journal"
       - "${SITEIMAGEPERSO_CONFIG:-./config}/likes:/config/likes"
+      - "${SITEIMAGEPERSO_CONFIG:-./config}/rotations:/config/rotations"
     restart: unless-stopped
 
   # Connexion Google : seules les adresses de config/emails.txt entrent
