@@ -626,6 +626,13 @@ img
         background: #e64980;
 }
 
+.viewer__error
+{
+        display: block;
+        margin-bottom: 0.3rem;
+        color: #ffa8a8;
+}
+
 .viewer__button[hidden]
 {
         display: none;

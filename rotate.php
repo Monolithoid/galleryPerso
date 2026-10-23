@@ -52,11 +52,23 @@ if (($Found === NULL) || (CanRotateMedia($Found['item']) === FALSE))
         SendRotateResponse(404, array('error' => 'Photo introuvable.'));
 }
 
+// Volume oublié dans le docker-compose : le dire clairement plutôt qu'un échec muet
+$RotationsDirectory = dirname(GetRotationsFilePath());
+
+if ((is_dir($RotationsDirectory) === FALSE) || (is_writable($RotationsDirectory) === FALSE))
+{
+        $Message = 'Le dossier ' . $RotationsDirectory . ' n\'est pas accessible en écriture : ajoutez le volume'
+                . ' « <dossier de configuration>/rotations:' . $RotationsDirectory . ' » au conteneur du site.';
+        error_log('Rotation impossible : ' . $Message);
+        SendRotateResponse(500, array('error' => $Message));
+}
+
 $Rotation = RotateMedia($Key, $Found['album'], $Found['item'], $Degrees);
 
 if ($Rotation === NULL)
 {
-        SendRotateResponse(500, array('error' => 'Impossible de tourner la photo.'));
+        error_log('Rotation impossible : échec de vips sur ' . $Key);
+        SendRotateResponse(500, array('error' => 'Impossible de tourner la photo (vips n\'a pas pu la refaire).'));
 }
 
 $Item = ApplyMediaRotation($Found['item'], $Rotation);
