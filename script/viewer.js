@@ -409,11 +409,15 @@
                         body: body,
                         credentials: 'same-origin'
                 }).then(function (response) {
-                        if (!response.ok) {
-                                throw new Error('Réponse ' + response.status);
-                        }
+                        return response.json().catch(function () {
+                                return {};
+                        }).then(function (result) {
+                                if (!response.ok) {
+                                        throw new Error(result.error || ('Réponse ' + response.status));
+                                }
 
-                        return response.json();
+                                return result;
+                        });
                 }).then(function (result) {
                         self.rotateBusy[key] = false;
                         self.updateRotation(key, result);
@@ -421,7 +425,15 @@
                         console.error('Rotation non enregistrée.', error);
                         self.rotateBusy[key] = false;
                         self.renderRotate();
+                        self.showError('Rotation impossible. ' + error.message);
                 });
+        };
+
+        // Message d'erreur sous la photo, effacé au média suivant
+        Viewer.prototype.showError = function (message) {
+                var error = createElement('span', 'viewer__error', { role: 'alert' });
+                error.textContent = message;
+                this.caption.insertBefore(error, this.caption.firstChild);
         };
 
         // Même média, mêmes vignettes : il peut figurer dans plusieurs rubriques de l'accueil
