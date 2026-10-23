@@ -124,7 +124,8 @@ function IsIgnoredMediaEntry($Name)
                 return TRUE;
         }
 
-        return in_array($Name, MEDIA_IGNORED_DIRECTORIES, TRUE);
+        // « Legend » comme « legend » : la casse varie selon les albums
+        return in_array(strtolower($Name), array_map('strtolower', MEDIA_IGNORED_DIRECTORIES), TRUE);
 }
 
 // "./GalleryPhotos/2024/Plage" -> "GalleryPhotos/2024/Plage"

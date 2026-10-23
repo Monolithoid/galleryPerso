@@ -153,6 +153,15 @@ try
         );
         removeDirectoryRecursively($legacyAlbum);
 
+        // Dossier « legend » en minuscules et fichiers de casse différente
+        mkdir($legacyAlbum . '/legend', 0777, TRUE);
+        touch($legacyAlbum . '/IMG_0001.JPG');
+        file_put_contents($legacyAlbum . '/legend/img_0001.html', 'Paul et Alice');
+        shell_exec('php ' . escapeshellarg($projectRoot . '/bin/migrate-legends.php') . ' ' . escapeshellarg($legacyAlbum));
+        assertSameValue("IMG_0001.JPG: Paul et Alice\n", @file_get_contents($legacyAlbum . '/legendes.txt'), 'Dossier legend en minuscules migré');
+        assertTrueValue(IsIgnoredMediaEntry('legend'), 'Le dossier legend n\'est pas un album');
+        removeDirectoryRecursively($legacyAlbum);
+
         // Détection du format d'après le contenu
         $album = $galleryRoot . '/2024/Plage';
         mkdir($album . '/Small', 0777, TRUE);
