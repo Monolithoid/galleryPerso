@@ -370,6 +370,29 @@ img
         stroke-linejoin: round;
 }
 
+.media-thumb__likes
+{
+        position: absolute;
+        bottom: 0.35rem;
+        left: 0.35rem;
+        padding: 0.1rem 0.45rem;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        font-size: 0.75rem;
+        pointer-events: none;
+}
+
+.media-thumb__likes[hidden]
+{
+        display: none;
+}
+
+.media-thumb__likes.is-liked
+{
+        background: #d6336c;
+}
+
 .visually-hidden
 {
         position: absolute;
@@ -398,6 +421,18 @@ img
         max-height: 45vh;
         object-fit: cover;
         border-radius: var(--radius);
+}
+
+.home-likes .media-grid
+{
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+}
+
+.home-likes__more
+{
+        margin: 0.4rem 0 0;
+        color: var(--muted);
+        font-size: 0.9rem;
 }
 
 .news
@@ -542,6 +577,23 @@ img
         white-space: pre-line;
 }
 
+.viewer__like.is-liked
+{
+        background: #d6336c;
+}
+
+.viewer__like.is-liked:hover,
+.viewer__like.is-liked:focus-visible
+{
+        background: #e64980;
+}
+
+.viewer__album
+{
+        display: block;
+        color: #fff;
+}
+
 .viewer__caption small
 {
         display: block;
@@ -642,6 +694,17 @@ body.viewer-open
                 left: 0.25rem;
                 width: 1.4rem;
                 height: 1.4rem;
+        }
+
+        .media-thumb__likes
+        {
+                bottom: 0.25rem;
+                left: 0.25rem;
+        }
+
+        .home-likes .media-grid
+        {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
         .media-thumb__badge

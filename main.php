@@ -21,6 +21,9 @@ $News = array(
 </section>
 <?php endif; ?>
 
+<?php // Coups de cœur de chacun et médias qui font l'unanimité, une fois connecté ?>
+<?php echo RenderLikesSections(); ?>
+
 <section class="home-galleries">
   <h2>Les galeries</h2>
 <?php echo RenderAlbumCards('', $Galleries); ?>

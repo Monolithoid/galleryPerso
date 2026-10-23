@@ -99,6 +99,8 @@ Le site n’est visible qu’après connexion avec un compte Google dont l’adr
 
 Les visiteurs non connectés arrivent sur une page d’accueil avec un bouton « Se connecter avec Google » ; une adresse absente de la liste voit une page « pas d’accès » avec un bouton pour changer de compte. Ces pages sont dans `oauth2-proxy/` (`sign_in.html`, `error.html`, modèles Go d’oauth2-proxy), monté dans le conteneur de connexion sur `/templates`.
 
+**« J’aime »** : dans la visionneuse, le bouton ♡ met une photo ou une vidéo en avant ; un second clic retire le « j’aime » (touche `L` au clavier). Chaque vignette montre son nombre de « j’aime », en rose quand on en fait partie. Une fois connecté, l’accueil montre en tête les médias qui **font l’unanimité** (aimés par toutes les personnes qui ont déjà aimé quelque chose, dès qu’elles sont au moins deux), puis les **coups de cœur** de chacun (les vôtres d’abord), les plus aimés en premier, 12 par rubrique. Les « j’aime » sont enregistrés dans `likes/likes.json` du dossier de configuration (`SITEIMAGEPERSO_CONFIG`, monté sur `/config/likes` dans le conteneur du site ; autre emplacement possible avec `SITEIMAGEPERSO_LIKES_FILE`), par adresse et par média (chemin de l’album et nom du fichier) : un média renommé ou déplacé perd ses « j’aime ». Sans connexion Google (site lancé hors Docker), le bouton n’apparaît pas.
+
 Une fois connecté, l’adresse et un lien « Déconnexion » s’affichent en haut à droite. Après une déconnexion, Google propose de choisir le compte, ce qui permet de changer de personne sur un ordinateur partagé.
 
 **HTTPS** : Google n’accepte une adresse de retour en `http` que pour `localhost`. Sur le serveur, un reverse proxy garde le certificat et transmet les requêtes au conteneur :
@@ -126,6 +128,8 @@ Le port du conteneur n’écoute que sur `127.0.0.1` (`SITEIMAGEPERSO_HTTP_BIND`
 
 ## Tests
 `php tests/MediaProcessingTest.php` vérifie la détection des formats, l'orientation EXIF, la conversion des vidéos, le cache et l'affichage d'un album (les cas qui demandent `vipsthumbnail` ou `ffmpeg` sont ignorés si ces outils manquent). Dans Docker, tout doit passer, y compris la photo HEIC d'exemple (`tests/samples/iphone.heic`) : `docker compose build && docker compose run --rm --entrypoint php siteimageperso tests/MediaProcessingTest.php`. C'est la vérification à faire après chaque changement de l'image (version d'Alpine, paquets).
+
+`php tests/LikesTest.php` vérifie les « j’aime » : un clic aime, un second retire, et les rubriques de l’accueil (unanimité, coups de cœur).
 
 Le fichier `tests/VideoAccessTest.php` lance un serveur PHP intégré et vérifie que `video.php` répond correctement (statuts 200/403/404). Exécuter le script `php tests/VideoAccessTest.php` permet de s’assurer que la diffusion vidéo reste sécurisée.
 

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/lib/media.php';
+require_once __DIR__ . '/lib/likes.php';
 
 function PsExec($commandJob, $pidfile = NULL)
 { 
@@ -453,27 +454,121 @@ function RenderAlbum($Gallery, $Album)
 
         foreach ($Items as $Index => $Item)
         {
-                $Label = pathinfo($Item['name'], PATHINFO_FILENAME);
-
-                $Html .= '<li><button type="button" class="media-thumb media-thumb--' . EscapeHtml($Item['kind']) . '" data-index="' . $Index . '" title="' . EscapeHtml($Label) . '">';
-                $Html .= '<img src="' . EscapeHtml($Item['thumb']) . '" width="' . (int) $Item['thumb_width'] . '" height="' . (int) $Item['thumb_height'] . '" alt="' . EscapeHtml($Label) . '" loading="lazy">';
-                $Html .= RenderMediaTypeIcon($Item['kind']);
-
-                if ($Item['kind'] === 'video')
-                {
-                        $Html .= '<span class="media-thumb__badge">' . FormatMediaDuration($Item['duration']) . '</span>';
-                }
-
-                $Html .= '</button></li>';
-                $ViewerItems[] = GetViewerItem($Item);
+                $Key = GetMediaLikeKey($ResolvedPath['relative'], $Item['name']);
+                $Html .= RenderMediaThumb($Index, $Item, $Key);
+                $ViewerItems[] = GetViewerItem($Item, $Key);
         }
 
         $Html .= '</ul>';
-        $Html .= '<script type="application/json" id="album-media">'
+
+        return $Html . RenderViewerData($ViewerItems);
+}
+
+// Une vignette de la grille ; data-index renvoie au média dans RenderViewerData()
+function RenderMediaThumb($Index, $Item, $Key)
+{
+        $Label = pathinfo($Item['name'], PATHINFO_FILENAME);
+
+        $Html = '<li><button type="button" class="media-thumb media-thumb--' . EscapeHtml($Item['kind']) . '" data-index="' . $Index . '" data-media="' . EscapeHtml($Key) . '" title="' . EscapeHtml($Label) . '">';
+        $Html .= '<img src="' . EscapeHtml($Item['thumb']) . '" width="' . (int) $Item['thumb_width'] . '" height="' . (int) $Item['thumb_height'] . '" alt="' . EscapeHtml($Label) . '" loading="lazy">';
+        $Html .= RenderMediaTypeIcon($Item['kind']);
+        $Html .= RenderLikeBadge($Key);
+
+        if ($Item['kind'] === 'video')
+        {
+                $Html .= '<span class="media-thumb__badge">' . FormatMediaDuration($Item['duration']) . '</span>';
+        }
+
+        return $Html . '</button></li>';
+}
+
+// Cœur et nombre de « j'aime » dans le coin d'une vignette (vide s'il n'y en a pas)
+function RenderLikeBadge($Key)
+{
+        $Likes = LoadLikes();
+        $Count = isset($Likes[$Key]) ? count($Likes[$Key]) : 0;
+        $Mine = isset($Likes[$Key][GetConnectedEmail()]);
+
+        return '<span class="media-thumb__likes' . ($Mine ? ' is-liked' : '') . '"' . (($Count === 0) ? ' hidden' : '') . '>'
+                . '<span aria-hidden="true">♥</span> <span class="media-thumb__likes-count">' . $Count . '</span>'
+                . '<span class="visually-hidden"> j\'aime</span></span>';
+}
+
+// Médias de la page pour la visionneuse (script/viewer.js)
+function RenderViewerData($ViewerItems)
+{
+        $Html = '<script type="application/json" id="album-media"';
+
+        // Sans connexion (hors Docker), pas de bouton « j'aime »
+        if (GetConnectedEmail() !== '')
+        {
+                $Html .= ' data-likes="like.php"';
+        }
+
+        return $Html . '>'
                 . json_encode($ViewerItems, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP)
                 . '</script>';
+}
 
-        return $Html;
+/*
+ * Rubriques « j'aime » de l'accueil (voir BuildLikesSections) : une grille
+ * par rubrique et une seule visionneuse pour toutes. Un média aimé apparaît
+ * dans plusieurs rubriques ; la visionneuse le montre avec son album.
+ */
+function RenderLikesSections()
+{
+        $Email = GetConnectedEmail();
+
+        if ($Email === '')
+        {
+                return '';
+        }
+
+        $Sections = BuildLikesSections($Email);
+        $Html = '';
+        $ViewerItems = array();
+
+        if (count($Sections) === 0)
+        {
+                return '<section class="home-likes"><h2>Coups de cœur</h2>'
+                        . '<p class="notice">Ouvrez une photo ou une vidéo et touchez ♡ pour la mettre en avant ici. Un second clic retire le « j\'aime ».</p></section>';
+        }
+
+        foreach ($Sections as $Section)
+        {
+                $Total = count($Section['media']);
+                $Html .= '<section class="home-likes" id="' . EscapeHtml($Section['id']) . '"><h2>' . EscapeHtml($Section['title']) . '</h2>';
+
+                if ($Total === 0)
+                {
+                        $Html .= '<p class="notice">Aucun « j\'aime » pour le moment.</p></section>';
+                        continue;
+                }
+
+                $Html .= '<ul class="media-grid">';
+
+                foreach (array_slice($Section['media'], 0, LIKES_HOME_LIMIT) as $Entry)
+                {
+                        $Index = count($ViewerItems);
+                        $ViewerItem = GetViewerItem($Entry['item'], $Entry['key']);
+                        $ViewerItem['ref'] = $Entry['key'];
+                        $ViewerItem['album'] = basename($Entry['album']);
+                        $ViewerItem['albumUrl'] = GetAlbumUrl('./' . explode('/', $Entry['album'])[0], './' . $Entry['album']);
+                        $ViewerItems[] = $ViewerItem;
+                        $Html .= RenderMediaThumb($Index, $Entry['item'], $Entry['key']);
+                }
+
+                $Html .= '</ul>';
+
+                if ($Total > LIKES_HOME_LIMIT)
+                {
+                        $Html .= '<p class="home-likes__more">et ' . ($Total - LIKES_HOME_LIMIT) . ' autre' . (($Total - LIKES_HOME_LIMIT > 1) ? 's' : '') . '</p>';
+                }
+
+                $Html .= '</section>';
+        }
+
+        return $Html . RenderViewerData($ViewerItems);
 }
 
 // Pastille dans le coin d'une vignette : caméra pour une vidéo, photo pour une image
@@ -496,13 +591,19 @@ function RenderMediaTypeIcon($Kind)
 }
 
 // Ce dont la visionneuse (script/viewer.js) a besoin pour un média
-function GetViewerItem($Item)
+function GetViewerItem($Item, $Key)
 {
         $Original = empty($Item['full']) ? $Item['original'] : $Item['full'];
+        $Likes = LoadLikes();
+        $Like = array(
+                'key' => $Key,
+                'likes' => isset($Likes[$Key]) ? count($Likes[$Key]) : 0,
+                'liked' => isset($Likes[$Key][GetConnectedEmail()])
+        );
 
         if ($Item['kind'] === 'video')
         {
-                return array(
+                return $Like + array(
                         'kind' => 'video',
                         'name' => $Item['name'],
                         'src' => $Item['video'],
@@ -514,7 +615,7 @@ function GetViewerItem($Item)
                 );
         }
 
-        return array(
+        return $Like + array(
                 'kind' => 'image',
                 'name' => $Item['name'],
                 'src' => empty($Item['preview']) ? $Item['original'] : $Item['preview'],

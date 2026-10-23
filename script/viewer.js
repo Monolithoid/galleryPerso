@@ -5,6 +5,9 @@
  *
  * Navigation : flèches et Échap au clavier, glisser du doigt sur mobile,
  * bouton retour du téléphone pour fermer.
+ *
+ * Bouton « j'aime » (si le bloc JSON porte data-likes) : un clic aime le
+ * média, un second clic retire le « j'aime ». La touche L fait de même.
  */
 (function () {
         'use strict';
@@ -59,8 +62,9 @@
                 return element;
         }
 
-        function Viewer(items) {
+        function Viewer(items, likesUrl) {
                 this.items = items;
+                this.likesUrl = likesUrl;
                 this.index = -1;
                 this.build();
         }
@@ -78,6 +82,13 @@
                 var closeButton = createElement('button', 'viewer__button', { type: 'button', 'aria-label': 'Fermer' });
                 closeButton.textContent = '✕';
                 bar.appendChild(this.counter);
+
+                if (this.likesUrl) {
+                        this.likeButton = createElement('button', 'viewer__button viewer__like', { type: 'button', 'aria-pressed': 'false' });
+                        this.likeButton.addEventListener('click', function () { self.toggleLike(); });
+                        bar.appendChild(this.likeButton);
+                }
+
                 bar.appendChild(this.originalLink);
                 bar.appendChild(closeButton);
 
@@ -118,6 +129,8 @@
                                 self.step(1);
                         } else if (event.key === 'Escape') {
                                 self.close();
+                        } else if ((event.key === 'l' || event.key === 'L') && self.likeButton) {
+                                self.toggleLike();
                         }
                 });
 
@@ -181,7 +194,7 @@
                 }
 
                 for (var index = 0; index < this.items.length; index++) {
-                        if (this.items[index].name === name) {
+                        if ((this.items[index].ref || this.items[index].name) === name) {
                                 this.show(index);
                                 return;
                         }
@@ -189,7 +202,8 @@
         };
 
         Viewer.prototype.open = function (index) {
-                var hash = '#media=' + encodeURIComponent(this.items[index].name);
+                // Sur l'accueil, les médias viennent de plusieurs albums : ref est leur clé complète
+                var hash = '#media=' + encodeURIComponent(this.items[index].ref || this.items[index].name);
 
                 if (this.root.hidden) {
                         history.pushState({ viewer: true }, '', hash);
@@ -229,11 +243,19 @@
 
                 var date = formatDate(item.taken);
 
+                if (item.albumUrl) {
+                        var albumLink = createElement('a', 'viewer__album', { href: item.albumUrl });
+                        albumLink.textContent = item.album;
+                        this.caption.appendChild(albumLink);
+                }
+
                 if (date) {
                         var small = document.createElement('small');
                         small.textContent = date;
                         this.caption.appendChild(small);
                 }
+
+                this.renderLike();
 
                 if (this.root.hidden) {
                         this.root.hidden = false;
@@ -242,6 +264,85 @@
 
                 this.preload(index + 1);
                 this.preload(index - 1);
+        };
+
+        Viewer.prototype.renderLike = function () {
+                if (!this.likeButton) {
+                        return;
+                }
+
+                var item = this.items[this.index];
+
+                this.likeButton.textContent = (item.liked ? '♥' : '♡') + (item.likes > 0 ? ' ' + item.likes : '');
+                this.likeButton.setAttribute('aria-pressed', item.liked ? 'true' : 'false');
+                this.likeButton.setAttribute('aria-label', item.liked ? 'Je n\'aime plus' : 'J\'aime');
+                this.likeButton.classList.toggle('is-liked', item.liked);
+        };
+
+        // Même média, mêmes vignettes : il peut figurer dans plusieurs rubriques de l'accueil
+        Viewer.prototype.updateItems = function (key, liked, likes) {
+                for (var index = 0; index < this.items.length; index++) {
+                        if (this.items[index].key === key) {
+                                this.items[index].liked = liked;
+                                this.items[index].likes = likes;
+                        }
+                }
+
+                var thumbs = document.querySelectorAll('.media-thumb');
+
+                for (var thumbIndex = 0; thumbIndex < thumbs.length; thumbIndex++) {
+                        if (thumbs[thumbIndex].getAttribute('data-media') !== key) {
+                                continue;
+                        }
+
+                        var badge = thumbs[thumbIndex].querySelector('.media-thumb__likes');
+
+                        if (badge) {
+                                badge.hidden = likes === 0;
+                                badge.classList.toggle('is-liked', liked);
+                                badge.querySelector('.media-thumb__likes-count').textContent = likes;
+                        }
+                }
+
+                this.renderLike();
+        };
+
+        Viewer.prototype.toggleLike = function () {
+                var self = this;
+                var item = this.items[this.index];
+
+                if (!item || this.likeBusy) {
+                        return;
+                }
+
+                // Affiché tout de suite, corrigé par la réponse du serveur
+                var wasLiked = item.liked;
+                var oldLikes = item.likes;
+                this.likeBusy = true;
+                this.updateItems(item.key, !wasLiked, Math.max(0, oldLikes + (wasLiked ? -1 : 1)));
+
+                var body = new URLSearchParams();
+                body.append('media', item.key);
+
+                fetch(this.likesUrl, {
+                        method: 'POST',
+                        headers: { 'X-Galerie-Like': '1' },
+                        body: body,
+                        credentials: 'same-origin'
+                }).then(function (response) {
+                        if (!response.ok) {
+                                throw new Error('Réponse ' + response.status);
+                        }
+
+                        return response.json();
+                }).then(function (result) {
+                        self.updateItems(item.key, result.liked, result.count);
+                }).catch(function (error) {
+                        console.error('« J\'aime » non enregistré.', error);
+                        self.updateItems(item.key, wasLiked, oldLikes);
+                }).then(function () {
+                        self.likeBusy = false;
+                });
         };
 
         Viewer.prototype.preload = function (index) {
@@ -317,7 +418,7 @@
                         return;
                 }
 
-                var viewer = new Viewer(items);
+                var viewer = new Viewer(items, data.getAttribute('data-likes'));
                 var thumbs = document.querySelectorAll('.media-thumb');
 
                 for (var index = 0; index < thumbs.length; index++) {
