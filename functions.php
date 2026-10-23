@@ -466,17 +466,30 @@ function RenderLikesSections()
         foreach ($Sections as $Section)
         {
                 $Total = count($Section['media']);
-                $Html .= '<section class="home-likes" id="' . EscapeHtml($Section['id']) . '"><h2>' . EscapeHtml($Section['title']) . '</h2>';
+                $Title = EscapeHtml($Section['title']);
+
+                // Coups de cœur de chacun : repliés, un clic sur le titre les déplie
+                if ($Section['collapsed'])
+                {
+                        $Html .= '<details class="home-likes home-likes--person" id="' . EscapeHtml($Section['id']) . '">'
+                                . '<summary><h2>' . $Title . ' <span class="home-likes__count">' . $Total . '</span></h2></summary>';
+                }
+                else
+                {
+                        $Html .= '<section class="home-likes" id="' . EscapeHtml($Section['id']) . '"><h2>' . $Title . '</h2>';
+                }
+
+                $Close = $Section['collapsed'] ? '</details>' : '</section>';
 
                 if ($Total === 0)
                 {
-                        $Html .= '<p class="notice">Aucun « j\'aime » pour le moment.</p></section>';
+                        $Html .= '<p class="notice">Aucun « j\'aime » pour le moment.</p>' . $Close;
                         continue;
                 }
 
                 $Html .= '<ul class="media-grid">';
 
-                foreach (array_slice($Section['media'], 0, LIKES_HOME_LIMIT) as $Entry)
+                foreach ($Section['media'] as $Entry)
                 {
                         $Index = count($ViewerItems);
                         $Entry['item'] = ApplyMediaRotation($Entry['item'], GetMediaRotation($Entry['key']));
@@ -488,14 +501,7 @@ function RenderLikesSections()
                         $Html .= RenderMediaThumb($Index, $Entry['item'], $Entry['key']);
                 }
 
-                $Html .= '</ul>';
-
-                if ($Total > LIKES_HOME_LIMIT)
-                {
-                        $Html .= '<p class="home-likes__more">et ' . ($Total - LIKES_HOME_LIMIT) . ' autre' . (($Total - LIKES_HOME_LIMIT > 1) ? 's' : '') . '</p>';
-                }
-
-                $Html .= '</section>';
+                $Html .= '</ul>' . $Close;
         }
 
         return $Html . RenderViewerData($ViewerItems);

@@ -13,8 +13,6 @@
 
 require_once __DIR__ . '/media.php';
 
-// Nombre de médias montrés par rubrique sur l'accueil
-define('LIKES_HOME_LIMIT', 12);
 
 function GetLikesFilePath()
 {
@@ -303,7 +301,7 @@ function BuildLikesSections($CurrentEmail)
 
                 if (count($Unanimous) > 0)
                 {
-                        $Sections[] = array('id' => 'unanimite', 'title' => 'Font l\'unanimité', 'media' => $Unanimous);
+                        $Sections[] = array('id' => 'unanimite', 'title' => 'Font l\'unanimité', 'media' => $Unanimous, 'collapsed' => FALSE);
                 }
         }
 
@@ -330,7 +328,7 @@ function BuildLikesSections($CurrentEmail)
                 }
 
                 $Title = ($Email === $CurrentEmail) ? 'Mes coups de cœur' : 'Les coups de cœur de ' . GetLikerLabel($Email);
-                $Sections[] = array('id' => 'coups-de-coeur-' . md5($Email), 'title' => $Title, 'media' => $Favorites);
+                $Sections[] = array('id' => 'coups-de-coeur-' . md5($Email), 'title' => $Title, 'media' => $Favorites, 'collapsed' => TRUE);
         }
 
         return $Sections;
