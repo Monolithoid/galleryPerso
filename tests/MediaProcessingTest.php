@@ -212,12 +212,13 @@ try
                 file_put_contents($album . '/legendes.txt', "Une belle journée <b>ensoleillée</b>\n\ncoucher.jpg: Le soir & la mer\n");
                 // UserComment avec préfixe « ASCII » ou « UNICODE » (appareils photo, téléphones)
                 createJpegWithExif($album . '/vagues.jpg', '', "ASCII\0\0\0Les vagues" . str_repeat("\0", 6));
+                createJpegWithExif($album . '/bidon.jpg', '', "ASCII\0\0\0User comments" . str_repeat(' ', 20));
                 createJpegWithExif($album . '/feu.jpg', '', "UNICODE\0" . mb_convert_encoding('Feu d\'artifice à Noël', 'UTF-16LE', 'UTF-8'));
                 // Données binaires de l'appareil rangées dans UserComment
                 createJpegWithExif($album . '/reglages.jpg', '', "\0\0\0\0\0\0\0\0CALZDFE02Cur.ZDFI02CML0180\x01\x00\x15\x09\xFF\xFF\xFF\xFFAMB\x03\x00JKJK" . str_repeat("\x00\x01", 8) . 'FLFL');
                 // Légende Windows-1252 (apostrophe typographique)
                 createJpegWithExif($album . '/soir.jpg', mb_convert_encoding('L’été', 'Windows-1252', 'UTF-8'));
-                $expectedNames = array('coucher.jpg', 'feu.jpg', 'reglages.jpg', 'soir.jpg', 'vagues.jpg');
+                $expectedNames = array('bidon.jpg', 'coucher.jpg', 'feu.jpg', 'reglages.jpg', 'soir.jpg', 'vagues.jpg');
 
                 // Photo HEIC (format des iPhone) : vérifie que vips sait la décoder
                 copy($projectRoot . '/tests/samples/iphone.heic', $album . '/iphone.heic');
@@ -274,6 +275,7 @@ try
                 assertSameValue('Coucher de soleil', $photo['caption'], 'Légende EXIF lue');
                 assertSameValue('Les vagues', $items['vagues.jpg']['caption'], 'UserComment ASCII lu sans idéogrammes');
                 assertSameValue('Feu d\'artifice à Noël', $items['feu.jpg']['caption'], 'UserComment UNICODE lu');
+                assertSameValue('', $items['bidon.jpg']['caption'], 'Le texte « User comments » est ignoré');
                 assertSameValue('', $items['reglages.jpg']['caption'], 'Des données binaires ne deviennent pas une légende');
                 assertSameValue('L’été', $items['soir.jpg']['caption'], 'Légende Windows-1252 lue');
                 list($thumbWidth, $thumbHeight) = getimagesize($cacheRoot . '/' . $galleryName . '/2024/Plage/coucher.jpg.thumb.jpg');
@@ -335,7 +337,7 @@ try
                 }
 
                 assertSameValue('Les vagues', $fixedItems['vagues.jpg']['caption'], 'Une légende corrompue est corrigée');
-                assertSameValue(3, json_decode(file_get_contents($manifestPath), TRUE)['version'], 'La fiche passe en version 3');
+                assertSameValue(4, json_decode(file_get_contents($manifestPath), TRUE)['version'], 'La fiche passe en version 4');
                 clearstatcache();
                 assertSameValue($thumbTime, filemtime($thumbPath), 'Les vignettes ne sont pas refaites');
 
