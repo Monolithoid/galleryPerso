@@ -89,6 +89,11 @@ if [ -d /config/likes ]; then
     assign_owner "/config/likes" "$WEB_OWNER"
 fi
 
+# Photos tournées depuis la visionneuse (voir lib/rotations.php), seulement si le dossier est monté
+if [ -d /config/rotations ]; then
+    assign_owner "/config/rotations" "$WEB_OWNER"
+fi
+
 # su-exec sur Alpine, setpriv ailleurs
 run_as_web_user() {
     if command -v su-exec >/dev/null 2>&1; then

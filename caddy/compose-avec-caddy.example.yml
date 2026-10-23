@@ -26,10 +26,12 @@ services:
       - ${SITEIMAGEPERSO_CACHE:?}:/var/www/html/cache
       # Configuration du site en lecture seule : le site lit les prénoms de
       # emails.txt mais ne peut pas le modifier. Seuls journal/ (médias en
-      # erreur) et likes/ (« j'aime » de chacun) sont accessibles en écriture
+      # erreur), likes/ (« j'aime » de chacun) et rotations/ (photos tournées
+      # depuis la visionneuse) sont accessibles en écriture
       - ${SITEIMAGEPERSO_CONFIG:?}:/config:ro
       - ${SITEIMAGEPERSO_CONFIG:?}/journal:/config/journal
       - ${SITEIMAGEPERSO_CONFIG:?}/likes:/config/likes
+      - ${SITEIMAGEPERSO_CONFIG:?}/rotations:/config/rotations
     networks: [web]
     restart: unless-stopped
 

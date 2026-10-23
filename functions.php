@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/lib/media.php';
 require_once __DIR__ . '/lib/likes.php';
+require_once __DIR__ . '/lib/rotations.php';
 
 function GetNotEmpty($Value, $DefaultValue)
 {
@@ -239,7 +240,7 @@ function FindAlbumCover($RelativePath, $Depth = 0)
                 {
                         if ($Item['kind'] === 'image')
                         {
-                                return $Item['thumb'];
+                                return ApplyMediaRotation($Item, GetMediaRotation(GetMediaKey($RelativePath, $Item['name'])))['thumb'];
                         }
                 }
 
@@ -370,6 +371,7 @@ function RenderAlbum($Gallery, $Album)
         foreach ($Items as $Index => $Item)
         {
                 $Key = GetMediaLikeKey($ResolvedPath['relative'], $Item['name']);
+                $Item = ApplyMediaRotation($Item, GetMediaRotation($Key));
                 $Html .= RenderMediaThumb($Index, $Item, $Key);
                 $ViewerItems[] = GetViewerItem($Item, $Key);
         }
@@ -426,10 +428,10 @@ function RenderViewerData($ViewerItems)
 {
         $Html = '<script type="application/json" id="album-media"';
 
-        // Sans connexion (hors Docker), pas de bouton « j'aime »
+        // Sans connexion (hors Docker), pas de bouton « j'aime » ni de rotation
         if (GetConnectedEmail() !== '')
         {
-                $Html .= ' data-likes="like.php"';
+                $Html .= ' data-likes="like.php" data-rotate="rotate.php"';
         }
 
         return $Html . '>'
@@ -477,6 +479,7 @@ function RenderLikesSections()
                 foreach (array_slice($Section['media'], 0, LIKES_HOME_LIMIT) as $Entry)
                 {
                         $Index = count($ViewerItems);
+                        $Entry['item'] = ApplyMediaRotation($Entry['item'], GetMediaRotation($Entry['key']));
                         $ViewerItem = GetViewerItem($Entry['item'], $Entry['key']);
                         $ViewerItem['ref'] = $Entry['key'];
                         $ViewerItem['album'] = basename($Entry['album']);
@@ -545,6 +548,7 @@ function GetViewerItem($Item, $Key)
         return $Like + array(
                 'kind' => 'image',
                 'name' => $Item['name'],
+                'rotatable' => CanRotateMedia($Item),
                 'src' => empty($Item['preview']) ? $Item['original'] : $Item['preview'],
                 'original' => $Original,
                 'width' => (int) $Item['width'],

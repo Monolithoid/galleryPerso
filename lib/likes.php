@@ -97,7 +97,7 @@ function GetLikerLabel($Email)
 
 function GetMediaLikeKey($AlbumPath, $Name)
 {
-        return NormalizeAlbumRelativePath($AlbumPath) . '/' . $Name;
+        return GetMediaKey($AlbumPath, $Name);
 }
 
 function ParseLikesData($Json)
