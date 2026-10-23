@@ -24,10 +24,12 @@ services:
       - ${SITEIMAGEPERSO_GALLERY_CREATIVE:?}:/var/www/html/GalleryCreative
       # Vignettes, aperçus et vidéos converties : peut être effacé, il se reconstruit
       - ${SITEIMAGEPERSO_CACHE:?}:/var/www/html/cache
-      # Liste des médias en erreur de traitement (medias-en-erreur.txt).
-      # Seul ce sous-dossier de la configuration est accessible en écriture :
-      # le site ne peut pas toucher à emails.txt
+      # Liste des médias en erreur de traitement (medias-en-erreur.txt) et
+      # « j'aime » de chacun (likes.json). Seuls ces sous-dossiers de la
+      # configuration sont accessibles en écriture : le site ne peut pas
+      # toucher à emails.txt
       - ${SITEIMAGEPERSO_CONFIG:?}/journal:/config/journal
+      - ${SITEIMAGEPERSO_CONFIG:?}/likes:/config/likes
     networks: [web]
     restart: unless-stopped
 

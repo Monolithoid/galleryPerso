@@ -84,6 +84,11 @@ if [ -d /config/journal ]; then
     assign_owner "/config/journal" "$WEB_OWNER"
 fi
 
+# « J'aime » des médias (voir lib/likes.php), seulement si le dossier est monté
+if [ -d /config/likes ]; then
+    assign_owner "/config/likes" "$WEB_OWNER"
+fi
+
 # su-exec sur Alpine, setpriv ailleurs
 run_as_web_user() {
     if command -v su-exec >/dev/null 2>&1; then
