@@ -13,7 +13,6 @@ define('MEDIA_THUMB_SIZE', 400);
 define('MEDIA_PREVIEW_SIZE', 1600);
 define('MEDIA_VIDEO_MAX_WIDTH', 1920);
 define('MEDIA_MANIFEST_NAME', 'album.json');
-define('MEDIA_LEGEND_FILE', 'legendes.txt');
 
 // Dossiers techniques de l'ancien site, ignorés dans la navigation et le traitement
 define('MEDIA_IGNORED_DIRECTORIES', array('Small', 'Middle', 'Legend'));
@@ -246,96 +245,4 @@ function DetectMediaKind($AbsolutePath, $FileInfo = NULL)
         return array('kind' => NULL, 'mime' => $Mime);
 }
 
-/*
- * Lit le fichier legendes.txt d'un album :
- *
- *   Texte d'introduction de l'album (une ou plusieurs lignes)
- *
- *   IMG_0001.jpg: Alice sur la plage
- *   video_anniversaire.mp4: Les bougies
- *     une ligne commençant par un espace prolonge la légende précédente
- *
- * Les lignes qui commencent par # sont des commentaires.
- * Renvoie array('intro' => string, 'captions' => array(nom => légende)).
- */
-function ParseLegendText($Text)
-{
-        $Text = (string) $Text;
-
-        // Accepte aussi les fichiers enregistrés en Latin-1 par un vieil éditeur
-        if (($Text !== '') && (preg_match('//u', $Text) !== 1))
-        {
-                $Text = mb_convert_encoding($Text, 'UTF-8', 'ISO-8859-1');
-        }
-
-        $Text = preg_replace('/^\xEF\xBB\xBF/', '', $Text);
-        $IntroLines = array();
-        $Captions = array();
-        $CurrentName = NULL;
-
-        foreach (preg_split('/\r\n|\r|\n/', $Text) as $Line)
-        {
-                if (preg_match('/^\s*#/', $Line) === 1)
-                {
-                        continue;
-                }
-
-                if (preg_match('/^([^\s:][^:]*\.(?=[0-9]*[A-Za-z])[A-Za-z0-9]{2,5})\s*:\s?(.*)$/u', $Line, $Matches) === 1)
-                {
-                        $CurrentName = trim($Matches[1]);
-                        $Captions[$CurrentName] = trim($Matches[2]);
-                        continue;
-                }
-
-                if ($CurrentName === NULL)
-                {
-                        $IntroLines[] = rtrim($Line);
-                }
-                else if (trim($Line) !== '')
-                {
-                        if (preg_match('/^\s/', $Line) === 1)
-                        {
-                                $Captions[$CurrentName] = trim($Captions[$CurrentName] . "\n" . trim($Line));
-                        }
-                        else
-                        {
-                                $CurrentName = NULL;
-                                $IntroLines[] = rtrim($Line);
-                        }
-                }
-        }
-
-        return array(
-                'intro' => trim(implode("\n", $IntroLines)),
-                'captions' => $Captions
-        );
-}
-
-function LoadAlbumLegends($AlbumAbsolutePath)
-{
-        $LegendPath = $AlbumAbsolutePath . '/' . MEDIA_LEGEND_FILE;
-
-        if (is_file($LegendPath) === FALSE)
-        {
-                return array('intro' => '', 'captions' => array());
-        }
-
-        return ParseLegendText(file_get_contents($LegendPath));
-}
-
-// Légende d'un média : legendes.txt d'abord, puis celle des métadonnées du fichier
-function GetMediaCaption($Item, $Legends)
-{
-        if (isset($Legends['captions'][$Item['name']]))
-        {
-                return $Legends['captions'][$Item['name']];
-        }
-
-        if (isset($Item['caption']) && is_string($Item['caption']))
-        {
-                return $Item['caption'];
-        }
-
-        return '';
-}
 ?>

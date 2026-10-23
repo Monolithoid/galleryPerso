@@ -204,13 +204,6 @@ img
         font-size: clamp(1.4rem, 4vw, 2rem);
 }
 
-.album-intro
-{
-        max-width: 60rem;
-        margin: 0 0 1rem;
-        font-size: 1.05rem;
-}
-
 .album-count
 {
         margin: 1rem 0 0.5rem;
@@ -388,17 +381,6 @@ img
         clip: rect(0 0 0 0);
         white-space: nowrap;
         border: 0;
-}
-
-.media-caption
-{
-        margin: 0.25rem 0 0;
-        font-size: 0.8rem;
-        color: var(--muted);
-        overflow: hidden;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
 }
 
 /* Accueil */
@@ -666,11 +648,6 @@ body.viewer-open
         {
                 right: 0.25rem;
                 bottom: 0.25rem;
-        }
-
-        .media-caption
-        {
-                display: none;
         }
 
         .viewer__stage
