@@ -34,6 +34,19 @@ file_put_contents($AlbumCache . '/album.json', json_encode(array('items' => arra
 
 require __DIR__ . '/../lib/likes.php';
 
+function FindSection($Sections, $Id)
+{
+        foreach ($Sections as $Section)
+        {
+                if ($Section['id'] === $Id)
+                {
+                        return $Section;
+                }
+        }
+
+        return NULL;
+}
+
 $exitCode = 0;
 
 try
@@ -71,6 +84,14 @@ try
                 'Mes coups de cœur' => array($A),
                 'Les coups de cœur de Léa' => array($A, $C)
         ), $Summary, 'Rubriques de l\'accueil');
+
+        // Un troisième qui n'aime que c.jpg : plus rien n'est aimé par tous,
+        // la rubrique montre alors les plus partagés
+        ToggleMediaLike($C, 'zoe@exemple.fr');
+        LoadLikes(TRUE);
+        $Unanimity = FindSection(BuildLikesSections('tom@exemple.fr'), 'unanimite');
+        assertSameValue(array($A, $C), array_column($Unanimity['media'], 'key'), 'Sans unanimité : les plus partagés (2 sur 3)');
+        assertSameValue(TRUE, strpos($Unanimity['note'], '2 personnes sur 3') !== FALSE, 'Sans unanimité : explication');
 
         assertSameValue('Léa', GetLikerLabel('lea@exemple.fr'), 'Prénom lu dans emails.txt');
         assertSameValue('tom', GetLikerLabel('tom@exemple.fr'), 'Sans prénom : partie avant @');

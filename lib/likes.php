@@ -120,12 +120,12 @@ function ParseLikesData($Json)
         return $Likes;
 }
 
-// Lu une seule fois par requête
-function LoadLikes()
+// Lu une seule fois par requête ($Reload : relire le fichier, pour les tests)
+function LoadLikes($Reload = FALSE)
 {
         static $Likes = NULL;
 
-        if ($Likes === NULL)
+        if (($Likes === NULL) || $Reload)
         {
                 $FilePath = GetLikesFilePath();
                 $Likes = is_file($FilePath) ? ParseLikesData(@file_get_contents($FilePath)) : array();
@@ -287,22 +287,40 @@ function BuildLikesSections($CurrentEmail)
         $Sections = array();
         $Everyone = array_keys($Likers);
 
+        /*
+         * Font l'unanimité : aimés par tous. Tant qu'aucun média ne l'est
+         * (plus il y a de monde, plus c'est rare), la rubrique reste et
+         * montre les plus partagés, aimés par au moins deux personnes.
+         */
         if (count($Everyone) >= 2)
         {
-                $Unanimous = array();
+                $Best = 0;
 
                 foreach ($Media as $Entry)
                 {
-                        if (count($Entry['likers']) === count($Everyone))
+                        $Best = max($Best, count($Entry['likers']));
+                }
+
+                $Shared = array();
+
+                foreach ($Media as $Entry)
+                {
+                        if (($Best >= 2) && (count($Entry['likers']) === $Best))
                         {
-                                $Unanimous[] = $Entry;
+                                $Shared[] = $Entry;
                         }
                 }
 
-                if (count($Unanimous) > 0)
+                $Note = '';
+
+                if ($Best < count($Everyone))
                 {
-                        $Sections[] = array('id' => 'unanimite', 'title' => 'Font l\'unanimité', 'media' => $Unanimous, 'collapsed' => FALSE);
+                        $Note = ($Best >= 2)
+                                ? 'Aucun média n\'est encore aimé par tout le monde. Les plus partagés, aimés par ' . $Best . ' personnes sur ' . count($Everyone) . ' :'
+                                : 'Aucun média n\'est encore aimé par plusieurs personnes.';
                 }
+
+                $Sections[] = array('id' => 'unanimite', 'title' => 'Font l\'unanimité', 'media' => $Shared, 'collapsed' => FALSE, 'note' => $Note);
         }
 
         usort($Everyone, function ($Left, $Right) use ($CurrentEmail)
