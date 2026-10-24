@@ -481,6 +481,17 @@ function RenderLikesSections()
 
                 $Close = $Section['collapsed'] ? '</details>' : '</section>';
 
+                if (!empty($Section['note']))
+                {
+                        $Html .= '<p class="home-likes__note">' . EscapeHtml($Section['note']) . '</p>';
+                }
+
+                if (($Total === 0) && !empty($Section['note']))
+                {
+                        $Html .= $Close;
+                        continue;
+                }
+
                 if ($Total === 0)
                 {
                         $Html .= '<p class="notice">Aucun « j\'aime » pour le moment.</p>' . $Close;

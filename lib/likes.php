@@ -120,12 +120,12 @@ function ParseLikesData($Json)
         return $Likes;
 }
 
-// Lu une seule fois par requête
-function LoadLikes()
+// Lu une seule fois par requête ($Reload : relire le fichier, pour les tests)
+function LoadLikes($Reload = FALSE)
 {
         static $Likes = NULL;
 
-        if ($Likes === NULL)
+        if (($Likes === NULL) || $Reload)
         {
                 $FilePath = GetLikesFilePath();
                 $Likes = is_file($FilePath) ? ParseLikesData(@file_get_contents($FilePath)) : array();
@@ -287,22 +287,32 @@ function BuildLikesSections($CurrentEmail)
         $Sections = array();
         $Everyone = array_keys($Likers);
 
-        if (count($Everyone) >= 2)
+        /*
+         * Font l'unanimité : tous les médias qui ont le plus grand nombre de
+         * « j'aime » (s'il est de 3, tous ceux qui en ont 3), quelles que
+         * soient les personnes qui les ont aimés.
+         */
+        $Best = 0;
+
+        foreach ($Media as $Entry)
         {
-                $Unanimous = array();
+                $Best = max($Best, count($Entry['likers']));
+        }
+
+        if ($Best > 0)
+        {
+                $Top = array();
 
                 foreach ($Media as $Entry)
                 {
-                        if (count($Entry['likers']) === count($Everyone))
+                        if (count($Entry['likers']) === $Best)
                         {
-                                $Unanimous[] = $Entry;
+                                $Top[] = $Entry;
                         }
                 }
 
-                if (count($Unanimous) > 0)
-                {
-                        $Sections[] = array('id' => 'unanimite', 'title' => 'Font l\'unanimité', 'media' => $Unanimous, 'collapsed' => FALSE);
-                }
+                $Note = 'Les plus aimés : ' . $Best . ' « j\'aime »' . (($Best > 1) ? ' chacun.' : '.');
+                $Sections[] = array('id' => 'unanimite', 'title' => 'Font l\'unanimité', 'media' => $Top, 'collapsed' => FALSE, 'note' => $Note);
         }
 
         usort($Everyone, function ($Left, $Right) use ($CurrentEmail)

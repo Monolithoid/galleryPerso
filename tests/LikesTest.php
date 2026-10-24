@@ -34,6 +34,19 @@ file_put_contents($AlbumCache . '/album.json', json_encode(array('items' => arra
 
 require __DIR__ . '/../lib/likes.php';
 
+function FindSection($Sections, $Id)
+{
+        foreach ($Sections as $Section)
+        {
+                if ($Section['id'] === $Id)
+                {
+                        return $Section;
+                }
+        }
+
+        return NULL;
+}
+
 $exitCode = 0;
 
 try
@@ -71,6 +84,21 @@ try
                 'Mes coups de cœur' => array($A),
                 'Les coups de cœur de Léa' => array($A, $C)
         ), $Summary, 'Rubriques de l\'accueil');
+
+        // Le plus grand nombre de « j'aime » est 2 (a.jpg) ; zoe aime c.jpg,
+        // qui en a alors 2 aussi : les deux sont affichés, même si ce ne sont
+        // pas les mêmes personnes
+        ToggleMediaLike($C, 'zoe@exemple.fr');
+        LoadLikes(TRUE);
+        $Top = FindSection(BuildLikesSections('tom@exemple.fr'), 'unanimite');
+        assertSameValue(array($A, $C), array_column($Top['media'], 'key'), 'Tous les médias au plus grand nombre de « j\'aime »');
+        assertSameValue('Les plus aimés : 2 « j\'aime » chacun.', $Top['note'], 'Nombre de « j\'aime » indiqué');
+
+        // Un troisième « j'aime » sur c.jpg : il reste seul en tête
+        ToggleMediaLike($C, 'tom@exemple.fr');
+        LoadLikes(TRUE);
+        $Top = FindSection(BuildLikesSections('tom@exemple.fr'), 'unanimite');
+        assertSameValue(array($C), array_column($Top['media'], 'key'), 'Seul le plus aimé quand il est seul en tête');
 
         assertSameValue('Léa', GetLikerLabel('lea@exemple.fr'), 'Prénom lu dans emails.txt');
         assertSameValue('tom', GetLikerLabel('tom@exemple.fr'), 'Sans prénom : partie avant @');

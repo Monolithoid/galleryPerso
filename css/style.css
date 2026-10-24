@@ -504,6 +504,12 @@ img
         margin-bottom: 1rem;
 }
 
+.home-likes__note
+{
+        margin: -0.4rem 0 0.6rem;
+        color: var(--muted);
+}
+
 .home-likes__count
 {
         padding: 0.05rem 0.5rem;
