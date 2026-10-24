@@ -288,39 +288,31 @@ function BuildLikesSections($CurrentEmail)
         $Everyone = array_keys($Likers);
 
         /*
-         * Font l'unanimité : aimés par tous. Tant qu'aucun média ne l'est
-         * (plus il y a de monde, plus c'est rare), la rubrique reste et
-         * montre les plus partagés, aimés par au moins deux personnes.
+         * Font l'unanimité : tous les médias qui ont le plus grand nombre de
+         * « j'aime » (s'il est de 3, tous ceux qui en ont 3), quelles que
+         * soient les personnes qui les ont aimés.
          */
-        if (count($Everyone) >= 2)
+        $Best = 0;
+
+        foreach ($Media as $Entry)
         {
-                $Best = 0;
+                $Best = max($Best, count($Entry['likers']));
+        }
+
+        if ($Best > 0)
+        {
+                $Top = array();
 
                 foreach ($Media as $Entry)
                 {
-                        $Best = max($Best, count($Entry['likers']));
-                }
-
-                $Shared = array();
-
-                foreach ($Media as $Entry)
-                {
-                        if (($Best >= 2) && (count($Entry['likers']) === $Best))
+                        if (count($Entry['likers']) === $Best)
                         {
-                                $Shared[] = $Entry;
+                                $Top[] = $Entry;
                         }
                 }
 
-                $Note = '';
-
-                if ($Best < count($Everyone))
-                {
-                        $Note = ($Best >= 2)
-                                ? 'Aucun média n\'est encore aimé par tout le monde. Les plus partagés, aimés par ' . $Best . ' personnes sur ' . count($Everyone) . ' :'
-                                : 'Aucun média n\'est encore aimé par plusieurs personnes.';
-                }
-
-                $Sections[] = array('id' => 'unanimite', 'title' => 'Font l\'unanimité', 'media' => $Shared, 'collapsed' => FALSE, 'note' => $Note);
+                $Note = 'Les plus aimés : ' . $Best . ' « j\'aime »' . (($Best > 1) ? ' chacun.' : '.');
+                $Sections[] = array('id' => 'unanimite', 'title' => 'Font l\'unanimité', 'media' => $Top, 'collapsed' => FALSE, 'note' => $Note);
         }
 
         usort($Everyone, function ($Left, $Right) use ($CurrentEmail)

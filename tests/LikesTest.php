@@ -85,13 +85,20 @@ try
                 'Les coups de cœur de Léa' => array($A, $C)
         ), $Summary, 'Rubriques de l\'accueil');
 
-        // Un troisième qui n'aime que c.jpg : plus rien n'est aimé par tous,
-        // la rubrique montre alors les plus partagés
+        // Le plus grand nombre de « j'aime » est 2 (a.jpg) ; zoe aime c.jpg,
+        // qui en a alors 2 aussi : les deux sont affichés, même si ce ne sont
+        // pas les mêmes personnes
         ToggleMediaLike($C, 'zoe@exemple.fr');
         LoadLikes(TRUE);
-        $Unanimity = FindSection(BuildLikesSections('tom@exemple.fr'), 'unanimite');
-        assertSameValue(array($A, $C), array_column($Unanimity['media'], 'key'), 'Sans unanimité : les plus partagés (2 sur 3)');
-        assertSameValue(TRUE, strpos($Unanimity['note'], '2 personnes sur 3') !== FALSE, 'Sans unanimité : explication');
+        $Top = FindSection(BuildLikesSections('tom@exemple.fr'), 'unanimite');
+        assertSameValue(array($A, $C), array_column($Top['media'], 'key'), 'Tous les médias au plus grand nombre de « j\'aime »');
+        assertSameValue('Les plus aimés : 2 « j\'aime » chacun.', $Top['note'], 'Nombre de « j\'aime » indiqué');
+
+        // Un troisième « j'aime » sur c.jpg : il reste seul en tête
+        ToggleMediaLike($C, 'tom@exemple.fr');
+        LoadLikes(TRUE);
+        $Top = FindSection(BuildLikesSections('tom@exemple.fr'), 'unanimite');
+        assertSameValue(array($C), array_column($Top['media'], 'key'), 'Seul le plus aimé quand il est seul en tête');
 
         assertSameValue('Léa', GetLikerLabel('lea@exemple.fr'), 'Prénom lu dans emails.txt');
         assertSameValue('tom', GetLikerLabel('tom@exemple.fr'), 'Sans prénom : partie avant @');
