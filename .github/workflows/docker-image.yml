@@ -46,9 +46,14 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Check documented in the README after every change to the image
+      # Check documented in the README after every change to the image.
+      # The Dockerfile removes tests/ from the image, so they are mounted read-only.
       - name: Test media processing inside the image
-        run: docker run --rm --entrypoint php galleryperso:ci tests/MediaProcessingTest.php
+        run: >-
+          docker run --rm
+          -v "$GITHUB_WORKSPACE/tests:/var/www/html/tests:ro"
+          --entrypoint php galleryperso:ci
+          tests/MediaProcessingTest.php
 
       - name: Login to Docker Hub
         if: github.event_name != 'pull_request'

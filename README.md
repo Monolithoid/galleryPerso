@@ -136,7 +136,7 @@ Le port du conteneur n’écoute que sur `127.0.0.1` (`SITEIMAGEPERSO_HTTP_BIND`
 - Le script d’entrée du conteneur prépare le dossier du cache et lance le traitement des médias en arrière-plan (désactivable avec `SITEIMAGEPERSO_DISABLE_PROCESSOR=1`). Son journal est visible avec `docker compose logs -f`.
 
 ## Tests
-`php tests/MediaProcessingTest.php` vérifie la détection des formats, l'orientation EXIF, la conversion des vidéos, le cache et l'affichage d'un album (les cas qui demandent `vipsthumbnail` ou `ffmpeg` sont ignorés si ces outils manquent). Dans Docker, tout doit passer, y compris la photo HEIC d'exemple (`tests/samples/iphone.heic`) : `docker compose build && docker compose run --rm --entrypoint php siteimageperso tests/MediaProcessingTest.php`. C'est la vérification à faire après chaque changement de l'image (version d'Alpine, paquets).
+`php tests/MediaProcessingTest.php` vérifie la détection des formats, l'orientation EXIF, la conversion des vidéos, le cache et l'affichage d'un album (les cas qui demandent `vipsthumbnail` ou `ffmpeg` sont ignorés si ces outils manquent). Dans Docker, tout doit passer, y compris la photo HEIC d'exemple (`tests/samples/iphone.heic`) : `docker compose build && docker compose run --rm -v ./tests:/var/www/html/tests:ro --entrypoint php siteimageperso tests/MediaProcessingTest.php` (l'image ne contient pas `tests/`, d'où le montage). C'est la vérification à faire après chaque changement de l'image (version d'Alpine, paquets).
 
 `php tests/LikesTest.php` vérifie les « j’aime » : un clic aime, un second retire, et les rubriques de l’accueil (unanimité, coups de cœur).
 
