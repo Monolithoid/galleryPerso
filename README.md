@@ -1,4 +1,11 @@
-# siteImagePerso
+<h1>
+  <img src="./assets/galleryPerso-icon.png" alt="" width="48" height="48" align="middle">
+  galleryPerso
+</h1>
+
+![galleryPerso — Des tirages photo et une vignette vidéo dans un album de famille](./assets/galleryPerso-social.jpg)
+
+# galleryPerso
 Un petit site familial — volontairement old school — pour naviguer dans des photos et vidéos personnelles hébergées sur un partage réseau.
 
 ## Principe général
