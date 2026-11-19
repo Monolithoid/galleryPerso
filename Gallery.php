@@ -1,5 +1,5 @@
 <?php
-// Arborescence des albums de la galerie courante ($Selection vient de index.php)
+// Album tree of the current gallery ($Selection comes from index.php)
 $GalleryTreeJson = json_encode(
         BuildGalleryTree($Selection['gallery']),
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT

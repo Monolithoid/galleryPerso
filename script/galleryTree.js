@@ -50,7 +50,7 @@
                 try {
                         treeData = JSON.parse(jsonText || '[]');
                 } catch (error) {
-                        console.error('Impossible de parser la structure du diaporama.', error);
+                        console.error('Unable to parse the slideshow structure.', error);
                         treeData = [];
                 }
 

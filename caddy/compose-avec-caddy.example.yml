@@ -1,18 +1,18 @@
-# La galerie dans le docker-compose qui contient déjà Caddy (et d'autres
-# services). Coller les deux services ci-dessous sous « services: » de ce
-# fichier, puis mettre les valeurs propres à l'installation (chemins,
-# identifiants Google, adresse du site) dans le .env placé à côté de ce
-# docker-compose, le seul que docker compose lit (modèle :
-# caddy/galerie.env.example), et :
+# The gallery in the docker-compose that already contains Caddy (and other
+# services). Paste the two services below under "services:" in that
+# file, then put the installation-specific values (paths,
+# Google credentials, site address) in the .env next to that
+# docker-compose, the only one docker compose reads (template:
+# caddy/galerie.env.example), and:
 #   docker compose up -d --build galerie galerie-auth
-# et ajouter le bloc de caddy/Caddyfile.example au Caddyfile.
+# and add the block from caddy/Caddyfile.example to the Caddyfile.
 #
-# Aucun port n'est publié : Caddy joint la connexion Google par le réseau
-# « web », et seule la connexion Google joint le site.
+# No port is published: Caddy reaches the Google login through the
+# "web" network, and only the Google login reaches the site.
 
 services:
   galerie:
-    build: ${SITEIMAGEPERSO_SOURCES:?dossier du clone de galleryPerso}
+    build: ${SITEIMAGEPERSO_SOURCES:?galleryPerso clone folder}
     image: galerie
     container_name: galerie
     environment:
@@ -22,12 +22,12 @@ services:
     volumes:
       - ${SITEIMAGEPERSO_GALLERY_PHOTOS:?}:/var/www/html/GalleryPhotos
       - ${SITEIMAGEPERSO_GALLERY_CREATIVE:?}:/var/www/html/GalleryCreative
-      # Vignettes, aperçus et vidéos converties : peut être effacé, il se reconstruit
+      # Thumbnails, previews and converted videos: can be deleted, it rebuilds itself
       - ${SITEIMAGEPERSO_CACHE:?}:/var/www/html/cache
-      # Configuration du site en lecture seule : le site lit les prénoms de
-      # emails.txt mais ne peut pas le modifier. Seuls journal/ (médias en
-      # erreur), likes/ (« j'aime » de chacun) et rotations/ (photos tournées
-      # depuis la visionneuse) sont accessibles en écriture
+      # Site configuration, read-only: the site reads the first names from
+      # emails.txt but cannot change it. Only journal/ (failed
+      # media), likes/ (everyone's likes) and rotations/ (photos rotated
+      # from the viewer) are writable
       - ${SITEIMAGEPERSO_CONFIG:?}:/config:ro
       - ${SITEIMAGEPERSO_CONFIG:?}/journal:/config/journal
       - ${SITEIMAGEPERSO_CONFIG:?}/likes:/config/likes
@@ -35,7 +35,7 @@ services:
     networks: [web]
     restart: unless-stopped
 
-  # Connexion Google : seules les adresses de emails.txt entrent
+  # Google login: only the addresses in emails.txt get in
   galerie-auth:
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.5
     container_name: galerie-auth
@@ -49,10 +49,10 @@ services:
       OAUTH2_PROXY_REDIRECT_URL: ${SITEIMAGEPERSO_PUBLIC_URL:?}/oauth2/callback
       OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
       OAUTH2_PROXY_UPSTREAMS: "http://galerie:80/"
-      # Une adresse par ligne ; relu dès qu'il change, sans redémarrage
+      # One address per line; reread as soon as it changes, without a restart
       OAUTH2_PROXY_AUTHENTICATED_EMAILS_FILE: /config/emails.txt
       OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "false"
-      # Page d'accueil avec un bouton « Se connecter avec Google »
+      # Welcome page with a "Se connecter avec Google" button
       OAUTH2_PROXY_CUSTOM_TEMPLATES_DIR: /templates
       OAUTH2_PROXY_PROMPT: select_account
       OAUTH2_PROXY_COOKIE_NAME: _galerie_session
@@ -61,9 +61,9 @@ services:
       OAUTH2_PROXY_TRUSTED_PROXY_IPS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
       OAUTH2_PROXY_FOOTER: "-"
     volumes:
-      # Pages de connexion et d'erreur, en français (dossier du clone)
+      # Login and error pages, in French (clone folder)
       - ${SITEIMAGEPERSO_SOURCES:?}/oauth2-proxy:/templates:ro
-      # Configuration du site : emails.txt (fichier lisible par tous : chmod 644)
+      # Site configuration: emails.txt (world-readable file: chmod 644)
       - ${SITEIMAGEPERSO_CONFIG:?}:/config:ro
     networks: [web]
     restart: unless-stopped

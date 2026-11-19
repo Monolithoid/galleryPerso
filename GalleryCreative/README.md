@@ -1,5 +1,5 @@
 # GalleryCreative
 
-Ce dossier accueille les créations graphiques ou artistiques du site.
-Montez ce dossier sur un répertoire hôte lorsque vous utilisez Docker.
-Les fichiers médias restent ainsi en dehors du dépôt Git.
+This folder holds the site's graphic or artistic creations.
+Mount this folder on a host directory when using Docker.
+That way the media files stay outside the Git repository.

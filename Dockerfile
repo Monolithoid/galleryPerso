@@ -1,7 +1,7 @@
 FROM alpine:3.22
 
-# vips lit JPEG, PNG, WebP, HEIC (iPhone), AVIF, TIFF et applique l'orientation EXIF ;
-# ffmpeg prépare les vidéos que les navigateurs ne savent pas lire.
+# vips reads JPEG, PNG, WebP, HEIC (iPhone), AVIF, TIFF and applies the EXIF orientation;
+# ffmpeg prepares the videos that browsers cannot play.
 RUN apk add --no-cache \
     apache2 \
     ffmpeg \
@@ -33,7 +33,7 @@ COPY docker/apache/site.conf /etc/apache2/conf.d/siteimageperso.conf
 WORKDIR /var/www/html
 
 COPY . /var/www/html
-# Fichiers de développement et exemples de configuration : rien à servir
+# Development files and configuration examples: nothing to serve
 RUN rm -rf /var/www/html/docker \
     /var/www/html/tests \
     /var/www/html/apache2 \

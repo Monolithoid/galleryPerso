@@ -3,144 +3,143 @@
   galleryPerso
 </h1>
 
-![galleryPerso — Des tirages photo et une vignette vidéo dans un album de famille](./assets/galleryPerso-social.jpg)
+![galleryPerso — Photo prints and a video thumbnail in a family album](./assets/galleryPerso-social.jpg)
 
 # galleryPerso
-Un petit site familial — volontairement old school — pour naviguer dans des photos et vidéos personnelles hébergées sur un partage réseau.
+A small family website — deliberately old school — for browsing personal photos and videos hosted on a network share.
 
-## Principe général
-- Les médias sont stockés sur un espace réseau monté sur le serveur web.  
-- L’arborescence des dossiers (« année / événement », par exemple) est directement reflétée dans la navigation du site.
-- Les pages PHP se chargent de générer dynamiquement les miniatures et les aperçus en s’appuyant sur cette arborescence.
+## Overview
+- The media are stored on a network share mounted on the web server.  
+- The folder tree ("year / event", for example) is mirrored directly in the site navigation.
+- The PHP pages generate thumbnails and previews dynamically based on that tree.
 
-## Fonctionnement du site
+## How the site works
 
-### Pages principales
-- `index.php` valide la galerie et l'album demandés, puis compose la page : en-tête (`header.php`), menu des albums (`Gallery.php`), contenu, pied de page (`footer.php`). La mise en page s'adapte à l'écran : sur téléphone, le menu des albums s'ouvre avec le bouton « Albums ».
-- `main.php` est la page d'accueil : photo principale, galeries et nouvelles de la famille.
-- `RenderAlbum()` (dans `functions.php`) affiche un album : fil d'Ariane, introduction, sous-albums avec leur couverture, puis la grille des photos et vidéos.
+### Main pages
+- `index.php` validates the requested gallery and album, then builds the page: header (`header.php`), album menu (`Gallery.php`), content, footer (`footer.php`). The layout adapts to the screen: on a phone, the album menu opens with the « Albums » button.
+- `main.php` is the home page: main photo, galleries and family news.
+- `RenderAlbum()` (in `functions.php`) renders an album: breadcrumb, introduction, sub-albums with their cover, then the grid of photos and videos.
 
-### Navigation et diaporama
-1. Depuis la page d'accueil, l'utilisateur choisit une galerie (ex. `GalleryPhotos` ou `GalleryCreative`).
-2. Chaque dossier correspond à un album, à n'importe quelle profondeur (« 2024 / Vacances / Plage »). Le menu reproduit automatiquement l'arborescence du disque.
-3. Les vignettes, aperçus et vidéos converties sont préparés à l'avance par le traitement en arrière-plan (voir plus bas) ; la page de l'album lit simplement la fiche `album.json` de l'album dans le cache.
+### Navigation and slideshow
+1. From the home page, the user picks a gallery (e.g. `GalleryPhotos` or `GalleryCreative`).
+2. Each folder is an album, at any depth ("2024 / Holidays / Beach"). The menu automatically mirrors the folder tree on disk.
+3. Thumbnails, previews and converted videos are prepared in advance by the background processing (see below); the album page simply reads the album's `album.json` file from the cache.
 
-### Visionneuse
-`script/viewer.js` ouvre les photos et vidéos en plein écran :
-- précédent et suivant avec les flèches, les touches ← → ou en glissant le doigt ; Échap, la croix, un glissement vers le bas ou le bouton retour du téléphone pour fermer ;
-- lecture native des vidéos avec leur image d'aperçu ;
-- lien « Original » vers le fichier en pleine qualité et date de prise de vue ;
-- l'adresse garde le média ouvert (`#media=nom`), ce qui permet de partager un lien vers une photo.
+### Viewer
+`script/viewer.js` opens photos and videos full screen:
+- previous and next with the arrows, the ← → keys or by swiping; Esc, the cross, a downward swipe or the phone's back button to close;
+- native video playback with their preview image;
+- an « Original » link to the full-quality file, and the date the picture was taken;
+- the address keeps the open media (`#media=name`), so you can share a link to a photo.
 
-### Traitement automatique des médias
-`bin/process-media.php` tourne en continu dans le conteneur Docker et repasse sur les galeries toutes les `SITEIMAGEPERSO_SCAN_INTERVAL` secondes (60 par défaut). Pour chaque fichier, il :
-- reconnaît le **format réel** d'après le contenu, pas l'extension : JPEG, PNG, GIF, WebP, HEIC/HEIF (iPhone), AVIF, TIFF pour les photos ; MP4, MOV, AVI, MKV, WebM, MTS, WMV, MPEG… pour les vidéos. Les autres fichiers sont ignorés ;
-- crée une vignette et un aperçu en **corrigeant l'orientation** d'après l'EXIF ;
-- pour les formats que les navigateurs n'affichent pas (HEIC, TIFF…), crée en plus une version JPEG pleine taille ;
-- pour les vidéos, extrait une image d'aperçu, lit la durée et l'orientation, et **convertit en MP4 (H.264/AAC) uniquement si l'original n'est pas lisible** par les navigateurs ;
-- relève la date de prise de vue dans les métadonnées.
+### Automatic media processing
+`bin/process-media.php` runs continuously in the Docker container and rescans the galleries every `SITEIMAGEPERSO_SCAN_INTERVAL` seconds (60 by default). For each file, it:
+- recognises the **actual format** from the content, not the extension: JPEG, PNG, GIF, WebP, HEIC/HEIF (iPhone), AVIF, TIFF for photos; MP4, MOV, AVI, MKV, WebM, MTS, WMV, MPEG… for videos. Other files are ignored;
+- creates a thumbnail and a preview, **fixing the orientation** from the EXIF data;
+- for formats browsers cannot display (HEIC, TIFF…), also creates a full-size JPEG version;
+- for videos, extracts a preview image, reads the duration and orientation, and **converts to MP4 (H.264/AAC) only if the original cannot be played** by browsers;
+- reads the capture date from the metadata.
 
-Tout est rangé dans le cache (`cache/` par défaut), qui reproduit l'arborescence des galeries. **Les originaux ne sont jamais modifiés** et rien n'est écrit dans les dossiers d'albums. Un fichier déjà traité et inchangé n'est pas retraité ; un fichier supprimé disparaît du cache au passage suivant. Le cache peut être effacé sans risque : il se reconstruit tout seul.
+Everything goes into the cache (`cache/` by default), which mirrors the gallery tree. **Originals are never modified** and nothing is written into the album folders. A file that was already processed and has not changed is not processed again; a deleted file disappears from the cache on the next pass. The cache can be deleted safely: it rebuilds itself.
 
-**Médias en erreur** : un fichier que le traitement n'arrive pas à préparer (photo ou vidéo abîmée, format inconnu de vips ou ffmpeg) n'apparaît pas sur le site. Il est listé, avec la date de l'échec et la raison, dans `journal/medias-en-erreur.txt` du dossier de configuration (`SITEIMAGEPERSO_CONFIG`, monté sur `/config/journal` dans le conteneur du site ; autre emplacement possible avec `SITEIMAGEPERSO_ERROR_REPORT`). La liste est réécrite à chaque passage : un fichier remplacé, corrigé ou supprimé en sort tout seul, et elle indique « Aucun média en erreur. » quand tout va bien. Un fichier en échec n'est retenté que s'il change. Exemple de ligne :
+**Failed media**: a file the processing cannot prepare (damaged photo or video, format unknown to vips or ffmpeg) does not appear on the site. It is listed, with the failure date and the reason, in `journal/medias-en-erreur.txt` in the configuration folder (`SITEIMAGEPERSO_CONFIG`, mounted at `/config/journal` in the site container; another location can be set with `SITEIMAGEPERSO_ERROR_REPORT`). The list is rewritten on every pass: a file that is replaced, fixed or deleted drops out on its own, and the list says « Aucun média en erreur. » (no failed media) when everything is fine. A failed file is only retried if it changes. Example line:
 
 ```
 2026-10-22 13:05 UTC | GalleryPhotos/2024/Noël/clip.mp4 | vidéo illisible par ffprobe : moov atom not found
 ```
 
-Lancement à la main (hors Docker) : `php bin/process-media.php --once -v`. Outils nécessaires : `vipsthumbnail` avec la prise en charge HEIF (paquets `vips-tools` et `vips-heif` sous Alpine, `libvips-tools` et `libheif-plugin-libde265` sous Debian/Ubuntu), `ffmpeg` et `ffprobe`.
+Running it by hand (outside Docker): `php bin/process-media.php --once -v`. Required tools: `vipsthumbnail` with HEIF support (packages `vips-tools` and `vips-heif` on Alpine, `libvips-tools` and `libheif-plugin-libde265` on Debian/Ubuntu), `ffmpeg` and `ffprobe`.
 
-### Anciens dossiers
-Les dossiers `Legend/`, `Small/` et `Middle/` de l'ancien site ne sont ni lus ni supprimés : le site les ignore. Le site n'affiche pas de légendes.
+### Old folders
+The `Legend/`, `Small/` and `Middle/` folders of the old site are neither read nor deleted: the site ignores them. The site does not show captions.
 
-### Préparer un nouvel album
-1. Créer un dossier dans `GalleryPhotos/` ou `GalleryCreative/` (des sous-dossiers sont possibles) et y déposer les photos et vidéos telles quelles, sans conversion.
-2. L'album apparaît sur le site au fil du traitement, en général dans la minute pour les photos. Les vidéos à convertir demandent plus de temps.
+### Preparing a new album
+1. Create a folder in `GalleryPhotos/` or `GalleryCreative/` (sub-folders are allowed) and drop the photos and videos in as they are, without converting them.
+2. The album appears on the site as processing goes, usually within a minute for photos. Videos that need converting take longer.
 
-### Personnalisation
-- `ImagesSite/MainPhoto.jpg` (dossier à créer, absent du dépôt) est affichée en haut de l’accueil si elle existe.
-- `main.php` liste les actualités à mettre à jour manuellement.
-- Les noms des galeries se règlent dans `GetGalleryLabel()` (`lib/media.php`) ou avec `SITEIMAGEPERSO_GALLERY_LABELS="GalleryPhotos=Galerie des gosses;GalleryCreative=Galerie des glaces"`.
-- `header.php` et `css/style.css` permettent d’adapter le bandeau et l’apparence générale (les couleurs sont regroupées en haut de `css/style.css`).
+### Customisation
+- `ImagesSite/MainPhoto.jpg` (folder to create, not in the repository) is shown at the top of the home page if it exists.
+- `main.php` lists the news, to update by hand.
+- Gallery names are set in `GetGalleryLabel()` (`lib/media.php`) or with `SITEIMAGEPERSO_GALLERY_LABELS="GalleryPhotos=Galerie des gosses;GalleryCreative=Galerie des glaces"`.
+- `header.php` and `css/style.css` let you adapt the banner and the overall look (the colours are grouped at the top of `css/style.css`).
 
-## Diagnostics sécurisés
-`InfoSite.php` est protégé pour éviter toute exposition accidentelle en production. Par défaut, la page renvoie une erreur 404.
+## Secured diagnostics
+`InfoSite.php` is protected to avoid any accidental exposure in production. By default, the page returns a 404 error.
 
-Pour utiliser les diagnostics lors d’une intervention administrative :
+To use the diagnostics during an administrative intervention:
 
-1. Définir la variable d’environnement `SITEIMAGEPERSO_ENABLE_ADMIN_DIAGNOSTICS` à `true`, `1`, `yes` ou `on`.
-2. Définir également `SITEIMAGEPERSO_ADMIN_DIAGNOSTICS_USER` et `SITEIMAGEPERSO_ADMIN_DIAGNOSTICS_PASSWORD` avec les identifiants Basic Auth réservés à l’équipe d’administration.
-3. Ouvrir `InfoSite.php` après authentification HTTP.
+1. Set the environment variable `SITEIMAGEPERSO_ENABLE_ADMIN_DIAGNOSTICS` to `true`, `1`, `yes` or `on`.
+2. Also set `SITEIMAGEPERSO_ADMIN_DIAGNOSTICS_USER` and `SITEIMAGEPERSO_ADMIN_DIAGNOSTICS_PASSWORD` to the Basic Auth credentials reserved for the administration team.
+3. Open `InfoSite.php` after HTTP authentication.
 
-Ne déployez jamais ces variables d’environnement en production : tant qu’elles sont absentes ou vides, la page reste inaccessible et renvoie un statut 404. Les informations techniques (configuration PHP, capacités de GD, fiche matériel chargée depuis `matos.html`) restent ainsi limitées aux outils d’administration sécurisés.
+Never deploy these environment variables in production: as long as they are absent or empty, the page stays unreachable and returns a 404 status. The technical information (PHP configuration, GD capabilities, hardware sheet loaded from `matos.html`) thus stays limited to secured administration tools.
 
-## Dépendances techniques
-- PHP avec les extensions `fileinfo`, `gd`, `exif` et `mbstring`.
-- `vipsthumbnail` (libvips, avec la prise en charge HEIF), `ffmpeg` et `ffprobe` pour le traitement des médias.
-- Serveur web configuré pour pointer vers ce projet (voir les fichiers du dossier `apache2/` pour un exemple de configuration).
+## Technical dependencies
+- PHP with the `fileinfo`, `gd`, `exif` and `mbstring` extensions.
+- `vipsthumbnail` (libvips, with HEIF support), `ffmpeg` and `ffprobe` for media processing.
+- A web server configured to point to this project (see the files in the `apache2/` folder for an example configuration).
 
-## Déploiement avec Docker
+## Deploying with Docker
 
-Un environnement Docker est fourni pour simplifier la mise en place du site avec deux montages de volumes vers l’hôte, un pour chaque galerie.
+A Docker environment is provided to simplify setting up the site, with two volume mounts to the host, one per gallery.
 
-### Préparation
-1. Copiez le fichier `.env.example` en `.env` puis adaptez les chemins `SITEIMAGEPERSO_GALLERY_PHOTOS` et `SITEIMAGEPERSO_GALLERY_CREATIVE` vers vos dossiers d’albums (par exemple un partage Samba monté localement), et `SITEIMAGEPERSO_CACHE` vers le dossier du cache.
-2. Vérifiez que les dossiers pointés existent et que l’utilisateur Docker pourra y écrire. À défaut, ils seront créés au démarrage du conteneur.
-3. Réglez la connexion Google (section suivante) : sans elle, le site ne s’affiche pas.
+### Preparation
+1. Copy `.env.example` to `.env`, then point `SITEIMAGEPERSO_GALLERY_PHOTOS` and `SITEIMAGEPERSO_GALLERY_CREATIVE` to your album folders (for example a locally mounted Samba share), and `SITEIMAGEPERSO_CACHE` to the cache folder.
+2. Check that the target folders exist and that the Docker user can write to them. Otherwise, they are created when the container starts.
+3. Set up the Google login (next section): without it, the site does not display.
 
-### Connexion Google
-Le site n’est visible qu’après connexion avec un compte Google dont l’adresse figure dans une liste. C’est [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/), un second conteneur placé devant le site, qui s’en charge : le conteneur du site ne publie plus aucun port. Il occupe environ 20 Mo de mémoire.
+### Google login
+The site is only visible after logging in with a Google account whose address is on a list. [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/), a second container placed in front of the site, takes care of this: the site container no longer publishes any port. It uses about 20 MB of memory.
 
-**Côté Google** (une seule fois), dans la [Google Cloud Console](https://console.cloud.google.com/) :
-1. Créez un projet (par exemple « Galerie famille »).
-2. *API et services > Écran de consentement OAuth* (ou *Google Auth Platform*) : type d’utilisateurs **Externe**, nom de l’application, adresse de contact. Les autorisations par défaut (`email`, `profile`, `openid`) suffisent. Publiez l’application (*En production*) : en mode *Test*, seuls les comptes déclarés comme testeurs chez Google peuvent se connecter. Ces autorisations de base ne demandent normalement pas de validation par Google.
-3. *Identifiants > Créer des identifiants > ID client OAuth* : type **Application Web**. Dans *URI de redirection autorisés*, ajoutez `https://<votre-domaine>/oauth2/callback` (et `http://localhost:8080/oauth2/callback` pour tester sur votre ordinateur).
-4. Recopiez l’ID client et le code secret dans `.env` (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`).
+**On the Google side** (once), in the [Google Cloud Console](https://console.cloud.google.com/):
+1. Create a project (for example "Family gallery").
+2. *APIs & Services > OAuth consent screen* (or *Google Auth Platform*): user type **External**, application name, contact address. The default scopes (`email`, `profile`, `openid`) are enough. Publish the app (*In production*): in *Testing* mode, only accounts declared as testers at Google can log in. These basic scopes do not normally require verification by Google.
+3. *Credentials > Create credentials > OAuth client ID*: type **Web application**. In *Authorized redirect URIs*, add `https://<your-domain>/oauth2/callback` (and `http://localhost:8080/oauth2/callback` to test on your computer).
+4. Copy the client ID and secret into `.env` (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`).
 
-**Dans `.env`** :
-- `SITEIMAGEPERSO_PUBLIC_URL` : l’adresse du site, sans `/` final (`https://famille.example.com`) ;
-- `SITEIMAGEPERSO_COOKIE_SECRET` : 32 caractères aléatoires, obtenus avec `openssl rand -hex 16` ;
-- `SITEIMAGEPERSO_SESSION_DURATION` : durée avant de devoir se reconnecter (`720h`, 30 jours, par défaut).
+**In `.env`**:
+- `SITEIMAGEPERSO_PUBLIC_URL`: the site address, without a trailing `/` (`https://family.example.com`);
+- `SITEIMAGEPERSO_COOKIE_SECRET`: 32 random characters, from `openssl rand -hex 16`;
+- `SITEIMAGEPERSO_SESSION_DURATION`: time before having to log in again (`720h`, 30 days, by default).
 
-**Liste des adresses autorisées** : fichier `emails.txt` dans le dossier de configuration du site (`SITEIMAGEPERSO_CONFIG`, `./config` par défaut, monté en lecture seule dans les deux conteneurs), une adresse par ligne suivie d’une virgule et du prénom affiché sur le site (`marie.dupont@gmail.com, Marie`) ; les lignes qui commencent par `#` sont ignorées, majuscules et minuscules sont équivalentes. Exemple : `config.example/emails.txt`. Une modification est prise en compte immédiatement, sans redémarrer : une adresse retirée est refusée dès sa visite suivante. Une personne connectée mais absente de la liste reçoit une erreur 403. Le fichier doit exister et être lisible par tous (`chmod 644`), car oauth2-proxy ne tourne pas en root ; sinon le conteneur de connexion ne démarre pas. **Attention au format** : oauth2-proxy lit ce fichier comme un CSV et n’en garde que l’adresse, mais il exige le même nombre de virgules sur chaque ligne. Une ligne sans prénom, avec une virgule en trop ou avec des guillemets rend tout le fichier illisible : la connexion garde l’ancienne liste (message `error reading authenticated-emails-file` dans `docker compose logs`), ou refuse tout le monde si elle démarre ainsi. Sans prénom pour une adresse, le site affiche la partie avant `@`.
+**List of allowed addresses**: the `emails.txt` file in the site configuration folder (`SITEIMAGEPERSO_CONFIG`, `./config` by default, mounted read-only in both containers), one address per line followed by a comma and the first name shown on the site (`marie.dupont@gmail.com, Marie`); lines starting with `#` are ignored, and upper and lower case are equivalent. Example: `config.example/emails.txt`. A change takes effect immediately, without a restart: a removed address is refused on its next visit. A person who is logged in but not on the list gets a 403 error. The file must exist and be world-readable (`chmod 644`), because oauth2-proxy does not run as root; otherwise the login container does not start. **Mind the format**: oauth2-proxy reads this file as CSV and only keeps the address, but it requires the same number of commas on every line. A line without a first name, with an extra comma or with quotes makes the whole file unreadable: the login keeps the previous list (message `error reading authenticated-emails-file` in `docker compose logs`), or refuses everybody if it starts that way. Without a first name for an address, the site shows the part before `@`.
 
-Les visiteurs non connectés arrivent sur une page d’accueil avec un bouton « Se connecter avec Google » ; une adresse absente de la liste voit une page « pas d’accès » avec un bouton pour changer de compte. Ces pages sont dans `oauth2-proxy/` (`sign_in.html`, `error.html`, modèles Go d’oauth2-proxy), monté dans le conteneur de connexion sur `/templates`.
+Visitors who are not logged in land on a welcome page with a « Se connecter avec Google » (sign in with Google) button; an address that is not on the list sees a "no access" page with a button to switch accounts. These pages live in `oauth2-proxy/` (`sign_in.html`, `error.html`, oauth2-proxy Go templates), mounted in the login container at `/templates`.
 
-**« J’aime »** : le cœur ♡ dans le coin de chaque vignette, ou dans la visionneuse, met une photo ou une vidéo en avant ; un second clic retire le « j’aime » (touche `L` dans la visionneuse). Le cœur montre le nombre de « j’aime », en rose quand on en fait partie. Une fois connecté, l’accueil montre en tête la rubrique **« Font l’unanimité »** : tous les médias qui ont le plus grand nombre de « j’aime » (s’il est de 3, tous ceux qui en ont 3, quelles que soient les personnes), puis les **coups de cœur** de chacun, sous le prénom donné dans `emails.txt` (les vôtres d’abord), les plus aimés en premier, sans limite de nombre. Les coups de cœur de chacun sont repliés : un clic sur le titre (qui indique leur nombre) les affiche ou les masque. Les « j’aime » sont enregistrés dans `likes/likes.json` du dossier de configuration (`SITEIMAGEPERSO_CONFIG`, monté sur `/config/likes` dans le conteneur du site ; autre emplacement possible avec `SITEIMAGEPERSO_LIKES_FILE`), par adresse et par média (chemin de l’album et nom du fichier) : un média renommé ou déplacé perd ses « j’aime ». Sans connexion Google (site lancé hors Docker), le bouton n’apparaît pas.
+**Likes** (« j’aime »): the ♡ heart in the corner of each thumbnail, or in the viewer, highlights a photo or a video; a second click removes the like (`L` key in the viewer). The heart shows the number of likes, in pink when you are one of them. Once logged in, the home page starts with the **« Font l’unanimité »** (unanimous favourites) section: every media item with the highest number of likes (if it is 3, all those with 3, whoever gave them), then each person's **coups de cœur** (favourites), under the first name given in `emails.txt` (yours first), most liked first, with no limit. Each person's favourites are collapsed: clicking the title (which shows how many there are) shows or hides them. Likes are stored in `likes/likes.json` in the configuration folder (`SITEIMAGEPERSO_CONFIG`, mounted at `/config/likes` in the site container; another location can be set with `SITEIMAGEPERSO_LIKES_FILE`), per address and per media item (album path and file name): a renamed or moved item loses its likes. Without the Google login (site run outside Docker), the button does not appear.
 
-**Rotation des photos** : dans la visionneuse, les boutons ↺ et ↻ tournent une photo d’un quart de tour vers la gauche ou vers la droite (touche `R`, ou `Maj` + `R` pour la gauche). La vignette, l’aperçu et la version pleine taille du cache sont refaits tout de suite, tournés ; **l’original n’est jamais modifié** (le lien « Original » le montre tel quel). Les rotations sont enregistrées dans `rotations/rotations.json` du dossier de configuration (`SITEIMAGEPERSO_CONFIG`, monté sur `/config/rotations` dans le conteneur du site ; autre emplacement possible avec `SITEIMAGEPERSO_ROTATIONS_FILE`), hors du cache : un cache effacé se reconstruit avec les photos tournées. Comme pour les « j’aime », une photo renommée ou déplacée perd sa rotation. Les vidéos et les GIF animés ne se tournent pas. Sans connexion Google (site lancé hors Docker), les boutons n’apparaissent pas.
+**Photo rotation**: in the viewer, the ↺ and ↻ buttons rotate a photo a quarter turn to the left or to the right (`R` key, or `Shift` + `R` for left). The thumbnail, the preview and the full-size cached version are regenerated immediately, rotated; **the original is never modified** (the « Original » link shows it as is). Rotations are stored in `rotations/rotations.json` in the configuration folder (`SITEIMAGEPERSO_CONFIG`, mounted at `/config/rotations` in the site container; another location can be set with `SITEIMAGEPERSO_ROTATIONS_FILE`), outside the cache: a deleted cache is rebuilt with the rotated photos. As with likes, a renamed or moved photo loses its rotation. Videos and animated GIFs cannot be rotated. Without the Google login (site run outside Docker), the buttons do not appear.
 
-Une fois connecté, le prénom (l’adresse complète au survol) et un lien « Déconnexion » s’affichent en haut à droite. Après une déconnexion, Google propose de choisir le compte, ce qui permet de changer de personne sur un ordinateur partagé.
+Once logged in, the first name (the full address on hover) and a « Déconnexion » (log out) link appear in the top right. After logging out, Google offers to choose the account, which makes it possible to switch person on a shared computer.
 
-**HTTPS** : Google n’accepte une adresse de retour en `http` que pour `localhost`. Sur le serveur, un reverse proxy garde le certificat et transmet les requêtes au conteneur :
-- **Caddy** : voir `caddy/Caddyfile.example` (une ligne `reverse_proxy 127.0.0.1:8080`). Si Caddy tourne lui-même dans Docker, le plus simple est de déclarer la galerie et sa connexion Google directement dans le docker-compose de Caddy : voir `caddy/compose-avec-caddy.example.yml` (réglages dans `environment:`, chemins, identifiants Google et adresse du site dans un seul `.env` à côté de ce docker-compose, d’après `caddy/galerie.env.example`, liste des adresses dans un fichier monté, relu sans redémarrage) et `reverse_proxy galerie-auth:4180` ;
-- **Apache** : voir `apache2/site-available/002-example.com-docker-le-ssl.conf` (modules `proxy`, `proxy_http` et `headers`).
+**HTTPS**: Google only accepts an `http` callback address for `localhost`. On the server, a reverse proxy holds the certificate and forwards requests to the container:
+- **Caddy**: see `caddy/Caddyfile.example` (one line `reverse_proxy 127.0.0.1:8080`). If Caddy itself runs in Docker, the simplest is to declare the gallery and its Google login directly in Caddy's docker-compose: see `caddy/compose-avec-caddy.example.yml` (settings in `environment:`, paths, Google credentials and site address in a single `.env` next to that docker-compose, based on `caddy/galerie.env.example`, list of addresses in a mounted file, reread without a restart) and `reverse_proxy galerie-auth:4180`;
+- **Apache**: see `apache2/site-available/002-example.com-docker-le-ssl.conf` (modules `proxy`, `proxy_http` and `headers`).
 
-**Moteurs de recherche** : oauth2-proxy répond lui-même à `/robots.txt`, sans connexion, par `Disallow: /` (aucune page à explorer), et les deux exemples de reverse proxy ajoutent l’en-tête `X-Robots-Tag: noindex, nofollow` à toutes les réponses, page de connexion comprise. Vérification : `curl -sI https://<votre-domaine>/robots.txt` doit afficher cet en-tête, et `curl -s https://<votre-domaine>/robots.txt` le contenu `Disallow: /`. Le fichier `robots.txt` du dépôt dit la même chose, pour le cas où le site serait publié sans la connexion Google.
+**Search engines**: oauth2-proxy answers `/robots.txt` itself, without login, with `Disallow: /` (no page to crawl), and both reverse proxy examples add the `X-Robots-Tag: noindex, nofollow` header to every response, login page included. Check: `curl -sI https://<your-domain>/robots.txt` must show this header, and `curl -s https://<your-domain>/robots.txt` the content `Disallow: /`. The repository's `robots.txt` says the same, in case the site is published without the Google login.
 
-Le port du conteneur n’écoute que sur `127.0.0.1` (`SITEIMAGEPERSO_HTTP_BIND`) : on ne peut pas contourner la connexion en passant par le port 8080 depuis l’extérieur.
+The container port only listens on `127.0.0.1` (`SITEIMAGEPERSO_HTTP_BIND`): the login cannot be bypassed through port 8080 from outside.
 
-**Test sur son ordinateur** : `SITEIMAGEPERSO_PUBLIC_URL=http://localhost:8080` et `SITEIMAGEPERSO_COOKIE_SECURE=false` dans `.env`, avec l’adresse de retour `localhost` déclarée chez Google.
+**Testing on your computer**: `SITEIMAGEPERSO_PUBLIC_URL=http://localhost:8080` and `SITEIMAGEPERSO_COOKIE_SECURE=false` in `.env`, with the `localhost` callback address declared at Google.
 
-### Construction et lancement
-1. Construisez l’image et démarrez le service :
+### Build and start
+1. Build the image and start the service:
    ```
    docker compose up --build -d
    ```
-2. Le site est accessible sur le port défini par `SITEIMAGEPERSO_HTTP_PORT` (8080 par défaut), sur `127.0.0.1` seulement, ou à l’adresse publique à travers l’Apache de l’hôte. Si la connexion ne s’affiche pas, `docker compose logs oauth2-proxy` indique le réglage manquant.
+2. The site is reachable on the port set by `SITEIMAGEPERSO_HTTP_PORT` (8080 by default), on `127.0.0.1` only, or at the public address through the host's Apache. If the login page does not appear, `docker compose logs oauth2-proxy` shows the missing setting.
 
-### Notes complémentaires
-- Les répertoires `GalleryPhotos/` et `GalleryCreative/` présents dans ce dépôt servent de points de montage par défaut. Ils restent vides grâce aux `.gitignore` internes afin d’éviter d’ajouter les médias au dépôt.
-- Mémoire : au repos, le conteneur occupe environ 50 Mo. Le pic vient de la conversion d'une vidéo (environ 300 Mo en 1080p avec `SITEIMAGEPERSO_FFMPEG_THREADS=2`, la valeur par défaut ; 1 fil réduit encore la mémoire mais allonge la conversion). Apache est limité à `SITEIMAGEPERSO_MAX_WORKERS` processus (10 par défaut, au lieu de 150). Chaque connexion ouverte, vidéo en cours de lecture comprise, occupe un processus : augmentez cette valeur si plusieurs personnes regardent des vidéos en même temps.
-- HTTPS : le conteneur sert du HTTP et ne redirige pas vers HTTPS. Derrière un reverse proxy qui gère le certificat et transmet l'en-tête `X-Forwarded-Proto`, mettez `SITEIMAGEPERSO_FORCE_HTTPS=1` pour rediriger les visiteurs arrivés en HTTP. Hors Docker, `.htaccess` redirige toujours vers HTTPS.
-- Le script d’entrée du conteneur prépare le dossier du cache et lance le traitement des médias en arrière-plan (désactivable avec `SITEIMAGEPERSO_DISABLE_PROCESSOR=1`). Son journal est visible avec `docker compose logs -f`.
+### Additional notes
+- The `GalleryPhotos/` and `GalleryCreative/` folders in this repository are the default mount points. They stay empty thanks to their internal `.gitignore` files, to avoid adding media to the repository.
+- Memory: at rest, the container uses about 50 MB. The peak comes from converting a video (about 300 MB in 1080p with `SITEIMAGEPERSO_FFMPEG_THREADS=2`, the default; 1 thread reduces memory further but makes the conversion longer). Apache is limited to `SITEIMAGEPERSO_MAX_WORKERS` processes (10 by default, instead of 150). Every open connection, including a video being played, uses one process: increase this value if several people watch videos at the same time.
+- HTTPS: the container serves HTTP and does not redirect to HTTPS. Behind a reverse proxy that handles the certificate and forwards the `X-Forwarded-Proto` header, set `SITEIMAGEPERSO_FORCE_HTTPS=1` to redirect visitors who arrive over HTTP. Outside Docker, `.htaccess` always redirects to HTTPS.
+- The container entry script prepares the cache folder and starts the media processing in the background (can be disabled with `SITEIMAGEPERSO_DISABLE_PROCESSOR=1`). Its log is visible with `docker compose logs -f`.
 
 ## Tests
-`php tests/MediaProcessingTest.php` vérifie la détection des formats, l'orientation EXIF, la conversion des vidéos, le cache et l'affichage d'un album (les cas qui demandent `vipsthumbnail` ou `ffmpeg` sont ignorés si ces outils manquent). Dans Docker, tout doit passer, y compris la photo HEIC d'exemple (`tests/samples/iphone.heic`) : `docker compose build && docker compose run --rm -v ./tests:/var/www/html/tests:ro --entrypoint php siteimageperso tests/MediaProcessingTest.php` (l'image ne contient pas `tests/`, d'où le montage). C'est la vérification à faire après chaque changement de l'image (version d'Alpine, paquets).
+`php tests/MediaProcessingTest.php` checks format detection, EXIF orientation, video conversion, the cache and album rendering (cases that need `vipsthumbnail` or `ffmpeg` are skipped if those tools are missing). In Docker, everything must pass, including the sample HEIC photo (`tests/samples/iphone.heic`): `docker compose build && docker compose run --rm -v ./tests:/var/www/html/tests:ro --entrypoint php siteimageperso tests/MediaProcessingTest.php` (the image does not contain `tests/`, hence the mount). This is the check to run after every change to the image (Alpine version, packages).
 
-`php tests/LikesTest.php` vérifie les « j’aime » : un clic aime, un second retire, et les rubriques de l’accueil (unanimité, coups de cœur).
+`php tests/LikesTest.php` checks likes: one click likes, a second removes, and the home page sections (unanimous favourites, each person's favourites).
 
-`php tests/RotationsTest.php` vérifie la rotation des photos : quarts de tour enregistrés, vignettes refaites tournées sans toucher à l’original, et rotation reprise par le traitement en arrière-plan après effacement du cache (les cas qui demandent `vipsthumbnail` sont ignorés s’il manque).
+`php tests/RotationsTest.php` checks photo rotation: quarter turns recorded, thumbnails regenerated rotated without touching the original, and rotation picked up again by the background processing after the cache is deleted (cases that need `vipsthumbnail` are skipped if it is missing).
 
-Le fichier `tests/VideoAccessTest.php` lance un serveur PHP intégré et vérifie que `video.php` répond correctement (statuts 200/403/404). Exécuter le script `php tests/VideoAccessTest.php` permet de s’assurer que la diffusion vidéo reste sécurisée.
-
+`tests/VideoAccessTest.php` starts a built-in PHP server and checks that `video.php` responds correctly (statuses 200/403/404). Running `php tests/VideoAccessTest.php` makes sure video streaming stays secured.

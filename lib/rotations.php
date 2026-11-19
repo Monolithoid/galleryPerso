@@ -1,20 +1,20 @@
 <?php
 /*
- * Rotation des photos d'un quart de tour, depuis la visionneuse. L'original
- * n'est jamais modifié : seuls la vignette, l'aperçu et la version pleine
- * taille du cache sont refaits, tournés.
+ * Rotating photos by a quarter turn, from the viewer. The original
+ * is never modified: only the thumbnail, the preview and the full-size
+ * version in the cache are regenerated, rotated.
  *
- * Les rotations sont gardées hors du cache, qui peut être effacé et
- * reconstruit sans les perdre, dans un petit fichier JSON du dossier de
- * configuration (/config/rotations/rotations.json par défaut,
- * SITEIMAGEPERSO_ROTATIONS_FILE pour un autre emplacement) :
+ * Rotations are kept outside the cache, which can be deleted and
+ * rebuilt without losing them, in a small JSON file in the
+ * configuration folder (/config/rotations/rotations.json by default,
+ * SITEIMAGEPERSO_ROTATIONS_FILE for another location):
  *   { "GalleryPhotos/2024/Plage/IMG_0001.jpg": 90 }
- * en degrés, dans le sens des aiguilles d'une montre. La clé d'un média
- * est la même que pour les « j'aime » (voir GetMediaKey).
+ * in degrees, clockwise. A media item's key
+ * is the same as for likes (see GetMediaKey).
  *
- * La fiche album.json note pour chaque photo la rotation appliquée à ses
- * fichiers du cache (champ rotation) : le traitement en arrière-plan
- * refait les photos dont la rotation demandée a changé.
+ * The album.json record notes, for each photo, the rotation applied to its
+ * cached files (rotation field): the background processing
+ * regenerates the photos whose requested rotation has changed.
  */
 
 require_once __DIR__ . '/media.php';
@@ -54,7 +54,7 @@ function ParseRotationsData($Json)
         return $Rotations;
 }
 
-// Relu à chaque appel : le traitement en arrière-plan tourne sans s'arrêter
+// Reread on every call: the background processing runs without stopping
 function ReadRotations()
 {
         $FilePath = GetRotationsFilePath();
@@ -62,7 +62,7 @@ function ReadRotations()
         return is_file($FilePath) ? ParseRotationsData(@file_get_contents($FilePath)) : array();
 }
 
-// Lu une seule fois par requête
+// Read only once per request
 function LoadRotations()
 {
         static $Rotations = NULL;
@@ -85,23 +85,23 @@ function GetMediaRotation($Key, $Rotations = NULL)
         return isset($Rotations[$Key]) ? $Rotations[$Key] : 0;
 }
 
-// Rotation des fichiers du cache d'après la fiche (absente des fiches plus anciennes : 0)
+// Rotation of the cached files according to the record (missing from older records: 0)
 function GetAppliedRotation($Item)
 {
         return isset($Item['rotation']) ? NormalizeMediaRotation($Item['rotation']) : 0;
 }
 
-// Photos seulement ; pas les GIF, que la visionneuse montre d'origine pour garder l'animation
+// Photos only; not GIFs, which the viewer shows as originals to keep the animation
 function CanRotateMedia($Item)
 {
         return ($Item['kind'] === 'image') && (empty($Item['preview']) === FALSE);
 }
 
 /*
- * Média de la fiche tel que la page doit le montrer avec la rotation
- * $Rotation : largeur et hauteur échangées si les fichiers du cache ont
- * été refaits depuis la fiche (par RotateMedia), et adresses suivies de
- * « ?r=90 » pour que le navigateur ne ressorte pas l'ancienne vignette.
+ * Media item from the record as the page must show it with rotation
+ * $Rotation: width and height swapped if the cached files have
+ * been regenerated since the record (by RotateMedia), and addresses followed by
+ * "?r=90" so that the browser does not serve the old thumbnail.
  */
 function ApplyMediaRotation($Item, $Rotation)
 {
@@ -133,11 +133,11 @@ function ApplyMediaRotation($Item, $Rotation)
 }
 
 /*
- * Tourne une photo de $Degrees (90 ou -90) : refait tout de suite ses
- * fichiers du cache à partir de l'original, puis enregistre la rotation.
- * $AlbumPath et $Item viennent de la fiche de l'album (voir FindLikedMedia).
- * Renvoie la nouvelle rotation, ou NULL en cas d'échec (rien n'est alors
- * enregistré).
+ * Rotates a photo by $Degrees (90 or -90): immediately regenerates its
+ * cached files from the original, then saves the rotation.
+ * $AlbumPath and $Item come from the album record (see FindLikedMedia).
+ * Returns the new rotation, or NULL on failure (nothing is then
+ * saved).
  */
 function RotateMedia($Key, $AlbumPath, $Item, $Degrees)
 {
@@ -156,8 +156,8 @@ function RotateMedia($Key, $AlbumPath, $Item, $Degrees)
                 return NULL;
         }
 
-        // Le verrou couvre aussi la préparation des images : deux clics
-        // rapprochés, même de deux personnes, s'appliquent l'un après l'autre
+        // The lock also covers preparing the images: two clicks
+        // close together, even from two people, are applied one after the other
         flock($Lock, LOCK_EX);
         $Rotations = ReadRotations();
         $OldRotation = GetMediaRotation($Key, $Rotations);
@@ -191,7 +191,7 @@ function RotateMedia($Key, $AlbumPath, $Item, $Degrees)
                 $Saved = ($Written !== FALSE) && @rename($TemporaryPath, $FilePath);
         }
 
-        // Échec en route : on remet ce qui a pu être refait comme avant
+        // Failure midway: restore whatever was already regenerated
         if ($Saved === FALSE)
         {
                 foreach ($Versions as $Field => $Size)

@@ -8,7 +8,7 @@ $Selection = ResolveGallerySelection(
         isset($_GET['Diaporama']) ? $_GET['Diaporama'] : NULL
 );
 
-// Un album sans galerie : la galerie est le premier dossier de son chemin
+// An album without a gallery: the gallery is the first folder of its path
 if (($Selection['invalid'] === FALSE) && ($Selection['gallery'] === '') && ($Selection['album'] !== ''))
 {
         $Segments = explode('/', NormalizeAlbumRelativePath($Selection['album']));

@@ -1,8 +1,8 @@
   <a class="site-title" href="index.php">Galerie photos de famille</a>
   <p class="site-date">Bonjour, nous sommes le <?php echo date('d-m-Y'); ?></p>
 <?php
-// Adresse transmise par oauth2-proxy (connexion Google) ; absente hors Docker.
-// On affiche le prénom de emails.txt, l'adresse complète au survol
+// Address passed on by oauth2-proxy (Google login); absent outside Docker.
+// Shows the first name from emails.txt, the full address on hover
 $ConnectedEmail = $_SERVER['HTTP_X_FORWARDED_EMAIL'] ?? '';
 if ($ConnectedEmail !== ''):
 ?>

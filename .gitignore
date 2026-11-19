@@ -1,7 +1,7 @@
 .env
 cache/
 
-# Secrets et certificats
+# Secrets and certificates
 .env.*
 !.env.example
 *.pem
@@ -10,7 +10,7 @@ cache/
 *.p12
 *.pfx
 
-# Secrets et certificats
+# Secrets and certificates
 .env.*
 !.env.example
 *.pem
@@ -19,8 +19,8 @@ cache/
 *.p12
 *.pfx
 
-# Réglages propres au serveur (voir caddy/)
+# Server-specific settings (see caddy/)
 docker-compose.override.yml
 
-# Configuration du site (adresses autorisées)
+# Site configuration (allowed addresses)
 /config/

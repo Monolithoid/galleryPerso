@@ -1,6 +1,6 @@
-# Galerie privée : aucun moteur de recherche ne doit l'explorer.
-# Derrière oauth2-proxy, c'est lui qui répond à /robots.txt (sans
-# connexion) avec ce même contenu ; ce fichier sert si le site est
-# publié sans la connexion Google.
+# Private gallery: no search engine may crawl it.
+# Behind oauth2-proxy, it answers /robots.txt itself (without
+# login) with this same content; this file is used if the site is
+# published without the Google login.
 User-agent: *
 Disallow: /

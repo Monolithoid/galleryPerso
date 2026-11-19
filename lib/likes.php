@@ -1,14 +1,14 @@
 <?php
 /*
- * « J'aime » sur les photos et vidéos. Chaque personne connectée (adresse
- * transmise par oauth2-proxy) aime un média d'un clic et retire son
- * « j'aime » d'un second clic.
+ * Likes on photos and videos. Each logged-in person (address
+ * passed on by oauth2-proxy) likes a media item with one click and removes
+ * the like with a second click.
  *
- * Tout tient dans un petit fichier JSON du dossier de configuration
- * (/config/likes/likes.json par défaut, SITEIMAGEPERSO_LIKES_FILE pour un
- * autre emplacement) :
+ * Everything fits in a small JSON file in the configuration folder
+ * (/config/likes/likes.json by default, SITEIMAGEPERSO_LIKES_FILE for
+ * another location):
  *   { "GalleryPhotos/2024/Plage/IMG_0001.jpg": { "a@exemple.fr": "2026-10-23T08:00:00+00:00" } }
- * La clé d'un média est le chemin de son album suivi de son nom de fichier.
+ * A media item's key is its album path followed by its file name.
  */
 
 require_once __DIR__ . '/media.php';
@@ -26,7 +26,7 @@ function GetLikesFilePath()
         return '/config/likes/likes.json';
 }
 
-// Adresse de la personne connectée, transmise par oauth2-proxy ; vide hors Docker
+// Address of the logged-in person, passed on by oauth2-proxy; empty outside Docker
 function GetConnectedEmail()
 {
         return strtolower(trim((string) ($_SERVER['HTTP_X_FORWARDED_EMAIL'] ?? '')));
@@ -45,10 +45,10 @@ function GetEmailsFilePath()
 }
 
 /*
- * Prénoms de la liste des adresses autorisées (emails.txt, lu aussi par
- * oauth2-proxy, qui n'en garde que la première colonne) :
- *   adresse@gmail.com, Prénom
- * Renvoie array(adresse en minuscules => prénom).
+ * First names from the list of allowed addresses (emails.txt, also read by
+ * oauth2-proxy, which only keeps the first column):
+ *   address@gmail.com, FirstName
+ * Returns array(lower-case address => first name).
  */
 function LoadFirstNames()
 {
@@ -78,7 +78,7 @@ function LoadFirstNames()
         return $Names;
 }
 
-// Nom affiché : le prénom de emails.txt, sinon la partie de l'adresse avant « @ »
+// Display name: the first name from emails.txt, otherwise the part of the address before "@"
 function GetLikerLabel($Email)
 {
         $Names = LoadFirstNames();
@@ -120,7 +120,7 @@ function ParseLikesData($Json)
         return $Likes;
 }
 
-// Lu une seule fois par requête ($Reload : relire le fichier, pour les tests)
+// Read only once per request ($Reload: reread the file, for tests)
 function LoadLikes($Reload = FALSE)
 {
         static $Likes = NULL;
@@ -135,11 +135,11 @@ function LoadLikes($Reload = FALSE)
 }
 
 /*
- * Ajoute ou retire le « j'aime » de $Email sur un média. Le fichier est
- * verrouillé le temps de la modification, puis remplacé d'un coup pour
- * qu'une lecture ne tombe jamais sur un fichier à moitié écrit.
- * Renvoie array('liked' => bool, 'count' => int), ou NULL si le fichier
- * ne peut pas être écrit.
+ * Adds or removes $Email's like on a media item. The file is
+ * locked during the change, then replaced in one go so that
+ * a reader never sees a half-written file.
+ * Returns array('liked' => bool, 'count' => int), or NULL if the file
+ * cannot be written.
  */
 function ToggleMediaLike($Key, $Email)
 {
@@ -191,7 +191,7 @@ function ToggleMediaLike($Key, $Email)
         return array('liked' => $Liked, 'count' => isset($Likes[$Key]) ? count($Likes[$Key]) : 0);
 }
 
-// Fiche album.json gardée en mémoire le temps de la requête
+// album.json record kept in memory for the duration of the request
 function LoadAlbumManifestCached($AlbumPath)
 {
         static $Manifests = array();
@@ -205,8 +205,8 @@ function LoadAlbumManifestCached($AlbumPath)
 }
 
 /*
- * Retrouve le média d'une clé dans la fiche de son album. Renvoie NULL si
- * la clé n'est pas dans une galerie ou si le média n'existe plus.
+ * Finds a key's media item in its album record. Returns NULL if
+ * the key is not in a gallery or if the media item no longer exists.
  */
 function FindLikedMedia($Key)
 {
@@ -246,10 +246,10 @@ function FindLikedMedia($Key)
 }
 
 /*
- * Rubriques de l'accueil : les médias aimés par tous ceux qui ont déjà
- * aimé quelque chose (dès qu'ils sont au moins deux), puis les coups de
- * cœur de chacun, la personne connectée en premier. Dans chaque rubrique,
- * les plus aimés d'abord, puis les plus récemment aimés.
+ * Home page sections: the media liked by everyone who has already
+ * liked something (as soon as there are at least two of them), then each
+ * person's favourites, the logged-in person first. In each section,
+ * the most liked first, then the most recently liked.
  */
 function BuildLikesSections($CurrentEmail)
 {
@@ -288,9 +288,9 @@ function BuildLikesSections($CurrentEmail)
         $Everyone = array_keys($Likers);
 
         /*
-         * Font l'unanimité : tous les médias qui ont le plus grand nombre de
-         * « j'aime » (s'il est de 3, tous ceux qui en ont 3), quelles que
-         * soient les personnes qui les ont aimés.
+         * Unanimous favourites: every media item with the highest number of
+         * likes (if it is 3, all those with 3), whoever
+         * liked them.
          */
         $Best = 0;
 

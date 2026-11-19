@@ -1,12 +1,12 @@
 <?php
 /*
- * Vérifie le traitement des médias (bin/process-media.php) et
- * l'affichage d'un album à partir du cache.
+ * Checks the media processing (bin/process-media.php) and
+ * the rendering of an album from the cache.
  *
- * Usage : php tests/MediaProcessingTest.php
- * Les cas qui demandent vipsthumbnail ou ffmpeg sont ignorés si ces
- * outils ne sont pas installés. Dans l'image Docker, tout doit passer :
- * c'est la vérification à faire après chaque changement de l'image.
+ * Usage: php tests/MediaProcessingTest.php
+ * Cases that need vipsthumbnail or ffmpeg are skipped if these
+ * tools are not installed. In the Docker image, everything must pass:
+ * this is the check to run after every change to the image.
  */
 
 function assertSameValue($expected, $actual, $message)
@@ -61,8 +61,8 @@ function removeDirectoryRecursively($directory)
         rmdir($directory);
 }
 
-// JPEG 200x100 avec Orientation = 6 (à tourner de 90°), une légende EXIF
-// et, si donné, un UserComment brut (préfixe de jeu de caractères compris)
+// 200x100 JPEG with Orientation = 6 (to rotate by 90°), an EXIF caption
+// and, if given, a raw UserComment (character set prefix included)
 function createJpegWithExif($path, $description, $userComment = NULL)
 {
         $image = imagecreatetruecolor(200, 100);
@@ -72,7 +72,7 @@ function createJpegWithExif($path, $description, $userComment = NULL)
         $jpeg = ob_get_clean();
         imagedestroy($image);
 
-        // Plus de 4 octets : la valeur est rangée après l'IFD, pas dans l'entrée
+        // More than 4 bytes: the value is stored after the IFD, not in the entry
         $text = str_pad($description . "\0", 5, "\0");
         $count = ($userComment === NULL) ? 2 : 3;
         $dataOffset = 8 + 2 + $count * 12 + 4;
@@ -82,7 +82,7 @@ function createJpegWithExif($path, $description, $userComment = NULL)
 
         if ($userComment !== NULL)
         {
-                // Sous-IFD Exif contenant seulement UserComment
+                // Exif sub-IFD containing only UserComment
                 $exifOffset = $dataOffset + strlen($data);
                 $entries .= pack('vvVV', 0x8769, 4, 1, $exifOffset);
                 $data .= pack('v', 1) . pack('vvVV', 0x9286, 7, strlen($userComment), $exifOffset + 2 + 12 + 4) . pack('V', 0) . $userComment;
@@ -105,7 +105,7 @@ function runProcessor($projectRoot, $environment)
 
         if (proc_close($process) !== 0)
         {
-                throw new RuntimeException('Le traitement a échoué : ' . $output);
+                throw new RuntimeException('Processing failed: ' . $output);
         }
 
         return $output;
@@ -124,16 +124,16 @@ try
         putenv('SITEIMAGEPERSO_CACHE_DIR=' . $cacheRoot);
         require $projectRoot . '/functions.php';
 
-        // Les dossiers de l'ancien site ne sont pas des albums, quelle que soit leur casse
-        assertTrueValue(IsIgnoredMediaEntry('Legend') && IsIgnoredMediaEntry('legend'), 'Le dossier Legend n\'est pas un album');
+        // The old site's folders are not albums, whatever their case
+        assertTrueValue(IsIgnoredMediaEntry('Legend') && IsIgnoredMediaEntry('legend'), 'The Legend folder is not an album');
 
-        // Détection du format d'après le contenu
+        // Format detection from the content
         $album = $galleryRoot . '/2024/Plage';
         mkdir($album . '/Small', 0777, TRUE);
         file_put_contents($album . '/pas-une-image.jpg', 'texte');
-        assertSameValue(NULL, DetectMediaKind($album . '/pas-une-image.jpg')['kind'], 'Un faux .jpg n\'est pas une image');
+        assertSameValue(NULL, DetectMediaKind($album . '/pas-une-image.jpg')['kind'], 'A fake .jpg is not an image');
 
-        // Liste des médias en erreur : une vidéo tronquée y figure avec sa raison
+        // Failed-media list: a truncated video appears in it with its reason
         if (commandExists('ffmpeg'))
         {
                 $errorAlbum = $galleryRoot . '/Abimes';
@@ -153,20 +153,20 @@ try
                 );
                 runProcessor($projectRoot, $errorEnvironment);
                 $report = (string) @file_get_contents($reportDirectory . '/medias-en-erreur.txt');
-                assertTrueValue(preg_match('#^\d{4}-\d{2}-\d{2} \d{2}:\d{2} \S+ \| ' . preg_quote($galleryName, '#') . '/Abimes/coupee\.mp4 \| \S#m', $report) === 1, 'La vidéo abîmée est dans la liste des erreurs');
-                assertTrueValue(strpos($report, $errorAlbum) === FALSE, 'La raison ne contient pas le chemin complet');
+                assertTrueValue(preg_match('#^\d{4}-\d{2}-\d{2} \d{2}:\d{2} \S+ \| ' . preg_quote($galleryName, '#') . '/Abimes/coupee\.mp4 \| \S#m', $report) === 1, 'The damaged video is in the failure list');
+                assertTrueValue(strpos($report, $errorAlbum) === FALSE, 'The reason does not contain the full path');
 
-                // Retirée de la liste une fois le fichier supprimé
+                // Removed from the list once the file is deleted
                 unlink($errorAlbum . '/coupee.mp4');
                 runProcessor($projectRoot, $errorEnvironment);
-                assertTrueValue(strpos(file_get_contents($reportDirectory . '/medias-en-erreur.txt'), 'Aucun média en erreur.') !== FALSE, 'La liste se vide quand le fichier disparaît');
+                assertTrueValue(strpos(file_get_contents($reportDirectory . '/medias-en-erreur.txt'), 'Aucun média en erreur.') !== FALSE, 'The list empties when the file disappears');
                 removeDirectoryRecursively($errorAlbum);
                 removeDirectoryRecursively($reportDirectory);
         }
 
         if (!commandExists('vipsthumbnail'))
         {
-                echo 'vipsthumbnail absent : tests de traitement ignorés.' . PHP_EOL;
+                echo 'vipsthumbnail missing: processing tests skipped.' . PHP_EOL;
         }
         else
         {
@@ -174,12 +174,12 @@ try
                 mkdir($galleryRoot . '/2024/Noël à la mer', 0777, TRUE);
                 createJpegWithExif($galleryRoot . '/2024/Noël à la mer/sapin.jpg', '');
                 touch($galleryRoot . '/2024/Noël à la mer/sapin.jpg', time() - 60);
-                // L'ancien dossier Legend/ n'est ni lu ni modifié
+                // The old Legend/ folder is neither read nor modified
                 mkdir($album . '/Legend', 0777, TRUE);
                 file_put_contents($album . '/Legend/coucher.html', 'Le soir & la mer');
                 $expectedNames = array('coucher.jpg');
 
-                // Photo HEIC (format des iPhone) : vérifie que vips sait la décoder
+                // HEIC photo (iPhone format): checks that vips can decode it
                 copy($projectRoot . '/tests/samples/iphone.heic', $album . '/iphone.heic');
                 $expectedNames[] = 'iphone.heic';
 
@@ -192,7 +192,7 @@ try
                         $expectedNames[] = 'lisible.mp4';
                 }
 
-                // Fichiers déjà copiés (le traitement attend la fin des copies en cours)
+                // Files already copied (processing waits for ongoing copies to finish)
                 foreach (scandir($album) as $entry)
                 {
                         if (is_file($album . '/' . $entry))
@@ -210,17 +210,17 @@ try
                 runProcessor($projectRoot, $environment);
 
                 $manifest = LoadAlbumManifest('./' . $galleryName . '/2024/Plage');
-                assertTrueValue(is_array($manifest), 'La fiche album.json existe');
+                assertTrueValue(is_array($manifest), 'The album.json record exists');
                 sort($expectedNames);
                 $names = array_map(function ($item) { return $item['name']; }, $manifest['items']);
                 sort($names);
-                assertSameValue($expectedNames, $names, 'Seuls les vrais médias sont listés');
-                assertSameValue('Le soir & la mer', file_get_contents($album . '/Legend/coucher.html'), 'Legend/ est conservé tel quel');
-                assertTrueValue(!is_file($album . '/coucher.jpg.thumb.jpg'), 'Rien n\'est écrit dans le dossier de l\'album');
-                assertTrueValue(is_file($cacheRoot . '/' . $galleryName . '/2024/album.json'), 'Une fiche est créée pour chaque dossier');
+                assertSameValue($expectedNames, $names, 'Only real media are listed');
+                assertSameValue('Le soir & la mer', file_get_contents($album . '/Legend/coucher.html'), 'Legend/ is kept as is');
+                assertTrueValue(!is_file($album . '/coucher.jpg.thumb.jpg'), 'Nothing is written into the album folder');
+                assertTrueValue(is_file($cacheRoot . '/' . $galleryName . '/2024/album.json'), 'A record is created for each folder');
                 $accentManifest = LoadAlbumManifest('./' . $galleryName . '/2024/Noël à la mer');
-                assertSameValue(1, count($accentManifest['items']), 'Un album au nom accentué est traité');
-                assertTrueValue(!is_dir($cacheRoot . '/' . $galleryName . '/2024/Plage/Small'), 'Les dossiers de l\'ancien site sont ignorés');
+                assertSameValue(1, count($accentManifest['items']), 'An album with an accented name is processed');
+                assertTrueValue(!is_dir($cacheRoot . '/' . $galleryName . '/2024/Plage/Small'), 'The old site folders are ignored');
 
                 $items = array();
 
@@ -230,42 +230,42 @@ try
                 }
 
                 $photo = $items['coucher.jpg'];
-                assertSameValue(array(100, 200), array($photo['width'], $photo['height']), 'L\'orientation EXIF est appliquée');
-                assertTrueValue(!array_key_exists('caption', $photo), 'Aucune légende dans la fiche');
+                assertSameValue(array(100, 200), array($photo['width'], $photo['height']), 'The EXIF orientation is applied');
+                assertTrueValue(!array_key_exists('caption', $photo), 'No caption in the record');
                 list($thumbWidth, $thumbHeight) = getimagesize($cacheRoot . '/' . $galleryName . '/2024/Plage/coucher.jpg.thumb.jpg');
-                assertTrueValue($thumbHeight > $thumbWidth, 'La vignette est tournée');
+                assertTrueValue($thumbHeight > $thumbWidth, 'The thumbnail is rotated');
 
-                assertTrueValue(is_string($items['iphone.heic']['full']), 'Une version JPEG du HEIC est créée');
+                assertTrueValue(is_string($items['iphone.heic']['full']), 'A JPEG version of the HEIC is created');
 
                 if (isset($items['lisible.mp4']))
                 {
-                        assertSameValue(FALSE, $items['lisible.mp4']['transcoded'], 'Une vidéo lisible n\'est pas convertie');
-                        assertSameValue(TRUE, $items['ancienne.avi']['transcoded'], 'Une vidéo AVI est convertie');
-                        assertTrueValue(is_file($cacheRoot . '/' . $galleryName . '/2024/Plage/ancienne.avi.mp4'), 'Le MP4 converti est dans le cache');
+                        assertSameValue(FALSE, $items['lisible.mp4']['transcoded'], 'A playable video is not converted');
+                        assertSameValue(TRUE, $items['ancienne.avi']['transcoded'], 'An AVI video is converted');
+                        assertTrueValue(is_file($cacheRoot . '/' . $galleryName . '/2024/Plage/ancienne.avi.mp4'), 'The converted MP4 is in the cache');
                 }
 
-                // Affichage : aucune légende, ni de Legend/ ni de l'EXIF
+                // Rendering: no caption, neither from Legend/ nor from EXIF
                 $html = RenderAlbum('./' . $galleryName, './' . $galleryName . '/2024/Plage');
-                assertTrueValue(strpos($html, 'Le soir') === FALSE, 'Legend/ n\'est pas lu');
-                assertTrueValue(strpos($html, 'Coucher de soleil') === FALSE, 'La légende EXIF n\'est pas affichée');
-                assertTrueValue(strpos($html, 'media-caption') === FALSE, 'Pas de légende sous les vignettes');
-                assertTrueValue(preg_match('#<script type="application/json" id="album-media">(.*?)</script>#s', $html, $viewerData) === 1, 'La liste de la visionneuse est présente');
+                assertTrueValue(strpos($html, 'Le soir') === FALSE, 'Legend/ is not read');
+                assertTrueValue(strpos($html, 'Coucher de soleil') === FALSE, 'The EXIF caption is not shown');
+                assertTrueValue(strpos($html, 'media-caption') === FALSE, 'No caption under the thumbnails');
+                assertTrueValue(preg_match('#<script type="application/json" id="album-media">(.*?)</script>#s', $html, $viewerData) === 1, 'The viewer list is present');
                 $viewerItems = json_decode($viewerData[1], TRUE);
-                assertSameValue(count($expectedNames), count($viewerItems), 'La visionneuse reçoit tous les médias');
-                assertSameValue(substr_count($html, 'class="media-thumb '), count($viewerItems), 'Une vignette par média');
+                assertSameValue(count($expectedNames), count($viewerItems), 'The viewer receives all the media');
+                assertSameValue(substr_count($html, 'class="media-thumb '), count($viewerItems), 'One thumbnail per media item');
 
-                // L'album parent montre le sous-album avec sa couverture
+                // The parent album shows the sub-album with its cover
                 $parentHtml = RenderAlbum('./' . $galleryName, './' . $galleryName . '/2024');
-                assertTrueValue(strpos($parentHtml, 'class="album-card"') !== FALSE, 'Le sous-album est proposé');
-                assertTrueValue(strpos($parentHtml, '2024/Plage/') !== FALSE, 'La couverture vient du sous-album');
+                assertTrueValue(strpos($parentHtml, 'class="album-card"') !== FALSE, 'The sub-album is offered');
+                assertTrueValue(strpos($parentHtml, '2024/Plage/') !== FALSE, 'The cover comes from the sub-album');
 
-                // Un second passage ne retraite rien ; un fichier supprimé disparaît du cache
+                // A second pass reprocesses nothing; a deleted file disappears from the cache
                 $generated = $manifest['generated'];
                 sleep(1);
                 runProcessor($projectRoot, $environment);
-                assertSameValue($generated, LoadAlbumManifest('./' . $galleryName . '/2024/Plage')['generated'], 'Rien n\'est retraité sans changement');
+                assertSameValue($generated, LoadAlbumManifest('./' . $galleryName . '/2024/Plage')['generated'], 'Nothing is reprocessed without a change');
 
-                // Une fiche d'une version précédente perd ses légendes, sans refaire les vignettes
+                // A record from a previous version loses its captions, without regenerating the thumbnails
                 $manifestPath = $cacheRoot . '/' . $galleryName . '/2024/Plage/album.json';
                 $oldManifest = json_decode(file_get_contents($manifestPath), TRUE);
                 $oldManifest['version'] = 4;
@@ -291,14 +291,14 @@ try
                         $fixedItems[$item['name']] = $item;
                 }
 
-                assertTrueValue(!array_key_exists('caption', $fixedItems['coucher.jpg']), 'L\'ancienne légende est retirée de la fiche');
-                assertSameValue(5, json_decode(file_get_contents($manifestPath), TRUE)['version'], 'La fiche passe en version 5');
+                assertTrueValue(!array_key_exists('caption', $fixedItems['coucher.jpg']), 'The old caption is removed from the record');
+                assertSameValue(5, json_decode(file_get_contents($manifestPath), TRUE)['version'], 'The record moves to version 5');
                 clearstatcache();
-                assertSameValue($thumbTime, filemtime($thumbPath), 'Les vignettes ne sont pas refaites');
+                assertSameValue($thumbTime, filemtime($thumbPath), 'The thumbnails are not regenerated');
 
                 unlink($album . '/coucher.jpg');
                 runProcessor($projectRoot, $environment);
-                assertTrueValue(!is_file($cacheRoot . '/' . $galleryName . '/2024/Plage/coucher.jpg.thumb.jpg'), 'Le cache d\'un fichier supprimé est nettoyé');
+                assertTrueValue(!is_file($cacheRoot . '/' . $galleryName . '/2024/Plage/coucher.jpg.thumb.jpg'), 'The cache of a deleted file is cleaned up');
         }
 
         echo 'All media processing tests passed.' . PHP_EOL;

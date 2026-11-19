@@ -1,13 +1,13 @@
-# Adresses Google autorisées à voir la galerie, une par ligne, suivie
-# d'une virgule et du prénom affiché sur le site (coups de cœur, en-tête).
-# Toutes les lignes doivent avoir le même nombre de virgules : une seule.
-# Une ligne sans prénom (ou avec deux virgules) rend le fichier illisible
-# pour la connexion Google, qui garde alors l'ancienne liste, ou refuse
-# tout le monde si elle démarre avec ce fichier.
-# Pas de guillemets ni de virgule dans un prénom.
-# Copier ce dossier en dehors du dépôt (ou en ./config, ignoré par git)
-# et indiquer son chemin dans SITEIMAGEPERSO_CONFIG.
-# Les lignes qui commencent par # sont ignorées ; les changements sont
-# pris en compte sans redémarrer.
-prenom.nom@gmail.com, Prénom
-autre.personne@exemple.fr, Autre
+# Google addresses allowed to see the gallery, one per line, followed
+# by a comma and the first name shown on the site (favourites, header).
+# Every line must have the same number of commas: exactly one.
+# A line without a first name (or with two commas) makes the file unreadable
+# for the Google login, which then keeps the previous list, or refuses
+# everybody if it starts with this file.
+# No quotes and no comma in a first name.
+# Copy this folder outside the repository (or to ./config, ignored by git)
+# and set its path in SITEIMAGEPERSO_CONFIG.
+# Lines starting with # are ignored; changes are
+# picked up without a restart.
+firstname.lastname@gmail.com, FirstName
+other.person@example.com, Other

@@ -1,8 +1,8 @@
 <?php
 /*
- * Bascule le « j'aime » de la personne connectée sur un média.
- * Appelé par script/viewer.js : POST, champ « media » = clé du média
- * (chemin de l'album suivi du nom du fichier). Répond en JSON
+ * Toggles the logged-in person's like on a media item.
+ * Called by script/viewer.js: POST, field "media" = media key
+ * (album path followed by the file name). Answers in JSON
  * { "liked": true|false, "count": n }.
  */
 require 'functions.php';
@@ -24,7 +24,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST')
         SendLikeResponse(405, array('error' => 'Méthode non autorisée.'));
 }
 
-// En-tête posé par la page elle-même : un autre site ne peut pas l'envoyer
+// Header set by the page itself: another site cannot send it
 if (($_SERVER['HTTP_X_GALERIE_LIKE'] ?? '') !== '1')
 {
         SendLikeResponse(403, array('error' => 'Requête refusée.'));

@@ -1,29 +1,29 @@
 <?php
 /*
- * Traitement des médias en arrière-plan.
+ * Background media processing.
  *
- * Parcourt les galeries, reconnaît le format réel de chaque fichier et
- * prépare dans le cache tout ce dont le site a besoin :
- *   - <nom>.thumb.jpg   vignette (orientation EXIF corrigée)
- *   - <nom>.preview.jpg aperçu pour la visionneuse
- *   - <nom>.full.jpg    version pleine taille des formats que les
- *                       navigateurs n'affichent pas (HEIC, TIFF...)
- *   - <nom>.mp4         vidéo convertie, seulement si l'original n'est
- *                       pas lisible par les navigateurs
- *   - album.json        fiche de l'album lue par le site
+ * Walks through the galleries, recognises the actual format of each file and
+ * prepares in the cache everything the site needs:
+ *   - <name>.thumb.jpg   thumbnail (EXIF orientation fixed)
+ *   - <name>.preview.jpg preview for the viewer
+ *   - <name>.full.jpg    full-size version of the formats that
+ *                        browsers cannot display (HEIC, TIFF...)
+ *   - <name>.mp4         converted video, only if the original cannot
+ *                        be played by browsers
+ *   - album.json         album record read by the site
  *
- * Une photo tournée depuis la visionneuse (voir lib/rotations.php) a ses
- * vignette, aperçu et version pleine taille tournés ; l'original reste
- * tel quel.
+ * A photo rotated from the viewer (see lib/rotations.php) gets its
+ * thumbnail, preview and full-size version rotated; the original stays
+ * as is.
  *
- * La liste des médias en erreur est réécrite à chaque passage dans
- * SITEIMAGEPERSO_ERROR_REPORT (/config/journal/medias-en-erreur.txt par
- * défaut), si son dossier existe.
+ * The list of failed media is rewritten on every pass in
+ * SITEIMAGEPERSO_ERROR_REPORT (/config/journal/medias-en-erreur.txt by
+ * default), if its folder exists.
  *
- * Les originaux ne sont jamais modifiés. Un fichier déjà traité et
- * inchangé (taille et date) n'est pas retraité.
+ * Originals are never modified. A file that was already processed and
+ * has not changed (size and date) is not processed again.
  *
- * Usage : php bin/process-media.php [--once] [--interval=60] [-v]
+ * Usage: php bin/process-media.php [--once] [--interval=60] [-v]
  */
 
 if (PHP_SAPI !== 'cli')
@@ -35,9 +35,9 @@ if (PHP_SAPI !== 'cli')
 require_once __DIR__ . '/../lib/media.php';
 require_once __DIR__ . '/../lib/rotations.php';
 
-// Version 5 : plus de légendes, le champ caption des fiches est retiré
+// Version 5: no more captions, the caption field is removed from the records
 define('PROCESSOR_VERSION', 5);
-// Fiches plus anciennes, réutilisées sans retraitement une fois nettoyées
+// Older records, reused without reprocessing once cleaned up
 define('PROCESSOR_COMPATIBLE_VERSIONS', array(1, 2, 3, 4));
 
 $Options = getopt('v', array('once', 'interval:'));
@@ -64,7 +64,7 @@ function DebugLine($Message)
         }
 }
 
-// Raison du dernier échec, reprise dans la liste des médias en erreur
+// Reason for the last failure, shown in the list of failed media
 $FailureReason = '';
 
 function NoteFailure($Reason)
@@ -80,7 +80,7 @@ function RunCommand($Arguments, &$Output = NULL, &$Errors = NULL)
 
         if ($ExitCode !== 0)
         {
-                DebugLine('Échec (' . $ExitCode . ') : ' . implode(' ', $Arguments) . PHP_EOL . trim($Errors));
+                DebugLine('Failed (' . $ExitCode . '): ' . implode(' ', $Arguments) . PHP_EOL . trim($Errors));
         }
 
         return $ExitCode;
@@ -90,7 +90,7 @@ function EnsureDirectory($Path)
 {
         if ((is_dir($Path) === FALSE) && (@mkdir($Path, 0775, TRUE) === FALSE) && (is_dir($Path) === FALSE))
         {
-                throw new RuntimeException('Impossible de créer ' . $Path);
+                throw new RuntimeException('Unable to create ' . $Path);
         }
 }
 
@@ -105,14 +105,14 @@ function WriteFileAtomically($Path, $Content)
  * Images
  */
 
-// Voir RenderJpegVersion() dans lib/media.php
+// See RenderJpegVersion() in lib/media.php
 function CreateJpegVersion($SourcePath, $DestinationPath, $Size, $Rotation = 0)
 {
         $Failure = RenderJpegVersion($SourcePath, $DestinationPath, $Size, $Rotation);
 
         if ($Failure !== '')
         {
-                DebugLine('Échec : ' . $Failure);
+                DebugLine('Failed: ' . $Failure);
                 NoteFailure($Failure);
 
                 return FALSE;
@@ -167,11 +167,11 @@ function ProcessImage($SourcePath, $CacheDirectory, $AlbumCacheUrl, $Name, $Mime
                 'thumb' => $AlbumCacheUrl . '/' . rawurlencode($ThumbName),
                 'preview' => $AlbumCacheUrl . '/' . rawurlencode($PreviewName),
                 'full' => NULL,
-                // Rotation appliquée aux fichiers du cache
+                // Rotation applied to the cached files
                 'rotation' => $Rotation
         );
 
-        // GIF animés : la visionneuse affiche l'original pour garder l'animation
+        // Animated GIFs: the viewer shows the original to keep the animation
         if ($Mime === 'image/gif')
         {
                 $Item['preview'] = NULL;
@@ -198,7 +198,7 @@ function ProcessImage($SourcePath, $CacheDirectory, $AlbumCacheUrl, $Name, $Mime
 }
 
 /*
- * Vidéos
+ * Videos
  */
 
 function ProbeVideo($SourcePath)
@@ -285,7 +285,7 @@ function ProbeVideo($SourcePath)
         );
 }
 
-// Lisible tel quel par Chrome, Firefox et Safari ?
+// Playable as is by Chrome, Firefox and Safari?
 function IsBrowserPlayable($Probe)
 {
         $Format = $Probe['format'];
@@ -307,7 +307,7 @@ function IsBrowserPlayable($Probe)
         return FALSE;
 }
 
-// Moins de fils = moins de mémoire : environ 300 Mo au maximum avec 2 fils pour une vidéo 1080p
+// Fewer threads = less memory: about 300 MB at most with 2 threads for a 1080p video
 function GetFfmpegThreads()
 {
         $Configured = (int) getenv('SITEIMAGEPERSO_FFMPEG_THREADS');
@@ -390,7 +390,7 @@ function ProcessVideo($SourcePath, $CacheDirectory, $AlbumCacheUrl, $AlbumSource
         if (IsBrowserPlayable($Probe) === FALSE)
         {
                 $TranscodedName = $Name . '.mp4';
-                LogLine('Conversion de ' . $SourcePath . ' (' . $Probe['format'] . ', ' . $Probe['video_codec'] . ')');
+                LogLine('Converting ' . $SourcePath . ' (' . $Probe['format'] . ', ' . $Probe['video_codec'] . ')');
 
                 if (TranscodeVideo($SourcePath, $CacheDirectory . '/' . $TranscodedName, $Probe['audio_codec'] !== NULL) === FALSE)
                 {
@@ -441,7 +441,7 @@ function SaveManifest($CacheDirectory, $RelativePath, $Items, $Failed)
                 'path' => $RelativePath,
                 'generated' => date('c'),
                 'items' => array_values($Items),
-                // Fichiers illisibles, retentés seulement s'ils changent
+                // Unreadable files, retried only if they change
                 'failed' => (object) $Failed
         );
 
@@ -489,7 +489,7 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
                 }
         }
 
-        // Relu à chaque album : une rotation demandée entre-temps est prise en compte
+        // Reread for every album: a rotation requested in the meantime is taken into account
         $Rotations = ReadRotations();
         $FileInfo = finfo_open(FILEINFO_MIME_TYPE);
         $Items = array();
@@ -529,7 +529,7 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
                 {
                         $Items[$Entry] = $Previous[$Entry];
 
-                        // Les fiches d'avant la version 5 contiennent encore une légende
+                        // Records older than version 5 still contain a caption
                         if (array_key_exists('caption', $Items[$Entry]))
                         {
                                 unset($Items[$Entry]['caption']);
@@ -548,10 +548,10 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
                         continue;
                 }
 
-                // Ignore les fichiers encore en cours de copie
+                // Skip files that are still being copied
                 if ((time() - $ModifiedAt) < 10)
                 {
-                        DebugLine('En cours de copie, repris plus tard : ' . $EntryPath);
+                        DebugLine('Still being copied, will retry later: ' . $EntryPath);
                         continue;
                 }
 
@@ -563,7 +563,7 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
                 }
 
                 EnsureDirectory($CacheDirectory);
-                DebugLine('Traitement de ' . $EntryPath . ' (' . $Detection['mime'] . ')');
+                DebugLine('Processing ' . $EntryPath . ' (' . $Detection['mime'] . ')');
                 NoteFailure('format non pris en charge');
 
                 if ($Detection['kind'] === 'image')
@@ -577,7 +577,7 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
 
                 if ($Item === NULL)
                 {
-                        LogLine('Échec du traitement de ' . $EntryPath . ' : ' . $FailureReason);
+                        LogLine('Processing failed for ' . $EntryPath . ': ' . $FailureReason);
                         $Failed[$Entry] = array(
                                 'size' => $Size,
                                 'mtime' => $ModifiedAt,
@@ -609,7 +609,7 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
                 $Changed = TRUE;
                 $Statistics['processed']++;
 
-                // L'album apparaît sur le site au fur et à mesure du traitement
+                // The album appears on the site as processing goes
                 SaveManifest($CacheDirectory, $RelativePath, $Items, $Failed);
         }
 
@@ -631,7 +631,7 @@ function ProcessAlbum($AbsolutePath, $RelativePath, &$Statistics)
         return $SubDirectories;
 }
 
-// Supprime du cache ce qui correspond à des fichiers ou dossiers disparus
+// Removes from the cache whatever belongs to files or folders that are gone
 function RemoveOrphanCacheFiles($CacheDirectory, $Items, $SubDirectories)
 {
         $CacheEntries = @scandir($CacheDirectory);
@@ -669,7 +669,7 @@ function RemoveOrphanCacheFiles($CacheDirectory, $Items, $SubDirectories)
                 }
                 else if (strpos($CacheEntry, '.tmp') === 0)
                 {
-                        // Restes d'un traitement interrompu
+                        // Leftovers of an interrupted run
                         if ((time() - filemtime($CachePath)) > 3600)
                         {
                                 @unlink($CachePath);
@@ -708,7 +708,7 @@ function RemoveCacheDirectory($Path)
         @rmdir($Resolved);
 }
 
-// Médias en erreur au passage précédent, gardés dans la liste tant que le passage en cours ne les a pas revus
+// Media that failed on the previous pass, kept in the list until the current pass has seen them again
 $PreviousPassFailures = array();
 
 function RecordFailure(&$Statistics, $RelativePath, $Entry, $Failure)
@@ -718,13 +718,13 @@ function RecordFailure(&$Statistics, $RelativePath, $Entry, $Failure)
         $Path = $RelativePath . '/' . $Entry;
         $Statistics['failures'][$Path] = array(
                 'path' => $Path,
-                // Échecs enregistrés avant l'apparition de la liste : ni raison ni date
+                // Failures recorded before the list existed: no reason and no date
                 'reason' => isset($Failure['reason']) ? $Failure['reason'] : 'fichier illisible',
                 'date' => isset($Failure['date']) ? $Failure['date'] : NULL
         );
 
-        // Le premier passage peut durer des heures (conversion des vidéos) : un nouvel échec
-        // apparaît tout de suite dans la liste, sans attendre la fin du passage
+        // The first pass can take hours (video conversion): a new failure
+        // shows up in the list immediately, without waiting for the end of the pass
         if (isset($PreviousPassFailures[$Path]) === FALSE)
         {
                 WriteErrorReport(array_merge($PreviousPassFailures, $Statistics['failures']), TRUE);
@@ -743,14 +743,14 @@ function GetErrorReportPath()
         return $Configured;
 }
 
-// Liste lisible des médias en erreur ; un fichier corrigé ou supprimé en sort au passage suivant
+// Human-readable list of failed media; a fixed or deleted file drops out on the next pass
 function WriteErrorReport($Failures, $InProgress = FALSE)
 {
         $ReportPath = GetErrorReportPath();
 
         if (is_dir(dirname($ReportPath)) === FALSE)
         {
-                DebugLine('Pas de liste des médias en erreur : le dossier ' . dirname($ReportPath) . ' n\'existe pas.');
+                DebugLine('No failed-media list: the folder ' . dirname($ReportPath) . ' does not exist.');
 
                 return;
         }
@@ -782,7 +782,7 @@ function WriteErrorReport($Failures, $InProgress = FALSE)
                 $Content .= $Date . ' | ' . $Failure['path'] . ' | ' . $Failure['reason'] . PHP_EOL;
         }
 
-        // Réécrit seulement si la liste change
+        // Only rewritten if the list changes
         if (is_file($ReportPath) && (file_get_contents($ReportPath) === $Content))
         {
                 return;
@@ -790,7 +790,7 @@ function WriteErrorReport($Failures, $InProgress = FALSE)
 
         if (@file_put_contents($ReportPath . '.tmp' . getmypid(), $Content) === FALSE)
         {
-                LogLine('Impossible d\'écrire ' . $ReportPath . ' : vérifiez les droits du dossier.');
+                LogLine('Unable to write ' . $ReportPath . ': check the folder permissions.');
 
                 return;
         }
@@ -836,11 +836,11 @@ function RunOnce()
 
         if (($Statistics['processed'] > 0) || ($Statistics['failed'] > 0))
         {
-                LogLine($Statistics['processed'] . ' média(s) traité(s), ' . $Statistics['failed'] . ' en échec, ' . $Statistics['albums'] . ' album(s) parcouru(s).');
+                LogLine($Statistics['processed'] . ' media processed, ' . $Statistics['failed'] . ' failed, ' . $Statistics['albums'] . ' album(s) scanned.');
         }
         else
         {
-                DebugLine('Rien de nouveau dans ' . $Statistics['albums'] . ' album(s).');
+                DebugLine('Nothing new in ' . $Statistics['albums'] . ' album(s).');
         }
 }
 
@@ -849,7 +849,7 @@ $LockHandle = fopen(GetMediaCacheDirectory() . '/.process-media.lock', 'c');
 
 if (($LockHandle === FALSE) || (flock($LockHandle, LOCK_EX | LOCK_NB) === FALSE))
 {
-        LogLine('Un traitement est déjà en cours.');
+        LogLine('A processing run is already in progress.');
         exit(0);
 }
 
@@ -857,11 +857,11 @@ $ErrorReportPath = GetErrorReportPath();
 
 if (is_dir(dirname($ErrorReportPath)) === FALSE)
 {
-        LogLine('Pas de liste des médias en erreur : le dossier ' . dirname($ErrorReportPath) . ' n\'existe pas (volume non monté ?).');
+        LogLine('No failed-media list: the folder ' . dirname($ErrorReportPath) . ' does not exist (volume not mounted?).');
 }
 else
 {
-        LogLine('Liste des médias en erreur : ' . $ErrorReportPath);
+        LogLine('Failed-media list: ' . $ErrorReportPath);
 
         if (is_file($ErrorReportPath) === FALSE)
         {
@@ -877,7 +877,7 @@ do
         }
         catch (Throwable $Error)
         {
-                LogLine('Erreur : ' . $Error->getMessage());
+                LogLine('Error: ' . $Error->getMessage());
         }
 
 

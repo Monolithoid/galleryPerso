@@ -1,8 +1,8 @@
 <?php
 /*
- * « J'aime » : bascule aimé / plus aimé, rubriques de l'accueil
- * (unanimité, coups de cœur) et médias disparus ignorés.
- * Lancement : php tests/LikesTest.php
+ * Likes: toggling liked / not liked, home page sections
+ * (unanimous favourites, each person's favourites) and missing media ignored.
+ * Run: php tests/LikesTest.php
  */
 
 function assertSameValue($expected, $actual, $message)
@@ -55,20 +55,20 @@ try
         $B = 'GalleryPhotos/Plage/b.jpg';
         $C = 'GalleryPhotos/Plage/c.jpg';
 
-        assertSameValue(NULL, FindLikedMedia($B), 'Un média absent de la fiche est refusé');
-        assertSameValue(NULL, FindLikedMedia('lib/../GalleryPhotos/Plage/a.jpg'), 'Un chemin avec « .. » est refusé');
-        assertSameValue(NULL, FindLikedMedia('cache/Plage/a.jpg'), 'Un chemin hors des galeries est refusé');
-        assertSameValue('a.jpg', FindLikedMedia($A)['item']['name'], 'Un média de la fiche est trouvé');
+        assertSameValue(NULL, FindLikedMedia($B), 'A media item missing from the record is refused');
+        assertSameValue(NULL, FindLikedMedia('lib/../GalleryPhotos/Plage/a.jpg'), 'A path with ".." is refused');
+        assertSameValue(NULL, FindLikedMedia('cache/Plage/a.jpg'), 'A path outside the galleries is refused');
+        assertSameValue('a.jpg', FindLikedMedia($A)['item']['name'], 'A media item from the record is found');
 
-        assertSameValue(array('liked' => TRUE, 'count' => 1), ToggleMediaLike($A, 'lea@exemple.fr'), 'Premier clic : aimé');
-        assertSameValue(array('liked' => FALSE, 'count' => 0), ToggleMediaLike($A, 'lea@exemple.fr'), 'Second clic : plus aimé');
-        assertSameValue('{}', trim(file_get_contents(GetLikesFilePath())), 'Un média sans « j\'aime » sort du fichier');
+        assertSameValue(array('liked' => TRUE, 'count' => 1), ToggleMediaLike($A, 'lea@exemple.fr'), 'First click: liked');
+        assertSameValue(array('liked' => FALSE, 'count' => 0), ToggleMediaLike($A, 'lea@exemple.fr'), 'Second click: no longer liked');
+        assertSameValue('{}', trim(file_get_contents(GetLikesFilePath())), 'A media item without likes leaves the file');
 
         ToggleMediaLike($A, 'lea@exemple.fr');
         ToggleMediaLike($A, 'tom@exemple.fr');
         ToggleMediaLike($B, 'tom@exemple.fr');
         ToggleMediaLike($C, 'lea@exemple.fr');
-        // b.jpg n'est pas (plus) dans la fiche : média supprimé, ignoré à l'affichage
+        // b.jpg is not (no longer) in the record: deleted media, ignored when rendering
         ToggleMediaLike($B, 'lea@exemple.fr');
 
         $Sections = BuildLikesSections('tom@exemple.fr');
@@ -83,31 +83,31 @@ try
                 'Font l\'unanimité' => array($A),
                 'Mes coups de cœur' => array($A),
                 'Les coups de cœur de Léa' => array($A, $C)
-        ), $Summary, 'Rubriques de l\'accueil');
+        ), $Summary, 'Home page sections');
 
-        // Le plus grand nombre de « j'aime » est 2 (a.jpg) ; zoe aime c.jpg,
-        // qui en a alors 2 aussi : les deux sont affichés, même si ce ne sont
-        // pas les mêmes personnes
+        // The highest number of likes is 2 (a.jpg); zoe likes c.jpg,
+        // which then has 2 as well: both are shown, even though they are not
+        // the same people
         ToggleMediaLike($C, 'zoe@exemple.fr');
         LoadLikes(TRUE);
         $Top = FindSection(BuildLikesSections('tom@exemple.fr'), 'unanimite');
-        assertSameValue(array($A, $C), array_column($Top['media'], 'key'), 'Tous les médias au plus grand nombre de « j\'aime »');
-        assertSameValue('Les plus aimés : 2 « j\'aime » chacun.', $Top['note'], 'Nombre de « j\'aime » indiqué');
+        assertSameValue(array($A, $C), array_column($Top['media'], 'key'), 'Every media item with the highest number of likes');
+        assertSameValue('Les plus aimés : 2 « j\'aime » chacun.', $Top['note'], 'Number of likes shown');
 
-        // Un troisième « j'aime » sur c.jpg : il reste seul en tête
+        // A third like on c.jpg: it is alone at the top
         ToggleMediaLike($C, 'tom@exemple.fr');
         LoadLikes(TRUE);
         $Top = FindSection(BuildLikesSections('tom@exemple.fr'), 'unanimite');
-        assertSameValue(array($C), array_column($Top['media'], 'key'), 'Seul le plus aimé quand il est seul en tête');
+        assertSameValue(array($C), array_column($Top['media'], 'key'), 'Only the most liked when it is alone at the top');
 
-        assertSameValue('Léa', GetLikerLabel('lea@exemple.fr'), 'Prénom lu dans emails.txt');
-        assertSameValue('tom', GetLikerLabel('tom@exemple.fr'), 'Sans prénom : partie avant @');
+        assertSameValue('Léa', GetLikerLabel('lea@exemple.fr'), 'First name read from emails.txt');
+        assertSameValue('tom', GetLikerLabel('tom@exemple.fr'), 'Without a first name: part before @');
 
-        echo "LikesTest : OK\n";
+        echo "LikesTest: OK\n";
 }
 catch (Throwable $Error)
 {
-        fwrite(STDERR, 'LikesTest : ÉCHEC : ' . $Error->getMessage() . "\n");
+        fwrite(STDERR, 'LikesTest: FAILED: ' . $Error->getMessage() . "\n");
         $exitCode = 1;
 }
 
