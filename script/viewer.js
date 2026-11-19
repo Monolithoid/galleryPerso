@@ -1,18 +1,18 @@
 /*
- * Visionneuse plein écran des photos et vidéos d'un album, et menu des
- * albums sur téléphone. Les médias viennent du bloc JSON #album-media
- * écrit par RenderAlbum() (functions.php).
+ * Full-screen viewer for an album's photos and videos, and the album
+ * menu on phones. The media come from the #album-media JSON block
+ * written by RenderAlbum() (functions.php).
  *
- * Navigation : flèches et Échap au clavier, glisser du doigt sur mobile,
- * bouton retour du téléphone pour fermer.
+ * Navigation: arrow keys and Esc on the keyboard, swiping on mobile,
+ * the phone's back button to close.
  *
- * Bouton « j'aime » (si le bloc JSON porte data-likes) : un clic aime le
- * média, un second clic retire le « j'aime ». La touche L fait de même.
+ * Like button (if the JSON block has data-likes): one click likes the
+ * media item, a second click removes the like. The L key does the same.
  *
- * Boutons de rotation (si le bloc JSON porte data-rotate) : tournent la
- * photo d'un quart de tour, à gauche ou à droite. Le serveur refait ses
- * vignette et aperçu ; l'original n'est pas modifié. Touche R : à droite,
- * Maj + R : à gauche.
+ * Rotation buttons (if the JSON block has data-rotate): rotate the
+ * photo a quarter turn, left or right. The server regenerates its
+ * thumbnail and preview; the original is not modified. R key: right,
+ * Shift + R: left.
  */
 (function () {
         'use strict';
@@ -130,7 +130,7 @@
                 previousButton.addEventListener('click', function () { self.step(-1); });
                 nextButton.addEventListener('click', function () { self.step(1); });
 
-                // Un clic sur le fond (hors du média) ferme la visionneuse
+                // A click on the background (outside the media) closes the viewer
                 this.stage.addEventListener('click', function (event) {
                         if (event.target === self.stage) {
                                 self.close();
@@ -200,7 +200,7 @@
                 }, { passive: true });
         };
 
-        // L'adresse garde le média ouvert (#media=nom) : lien partageable, bouton retour
+        // The address keeps the open media (#media=name): shareable link, back button
         Viewer.prototype.readHash = function () {
                 var match = window.location.hash.match(/^#media=(.+)$/);
 
@@ -223,7 +223,7 @@
         };
 
         Viewer.prototype.open = function (index) {
-                // Sur l'accueil, les médias viennent de plusieurs albums : ref est leur clé complète
+                // On the home page, media come from several albums: ref is their full key
                 var hash = '#media=' + encodeURIComponent(this.items[index].ref || this.items[index].name);
 
                 if (this.root.hidden) {
@@ -289,7 +289,7 @@
         };
 
         Viewer.prototype.renderLike = function () {
-                // Visionneuse fermée : clic sur le cœur d'une vignette
+                // Viewer closed: click on a thumbnail's heart
                 if (!this.likeButton || this.index < 0) {
                         return;
                 }
@@ -302,7 +302,7 @@
                 this.likeButton.classList.toggle('is-liked', item.liked);
         };
 
-        // Même média, mêmes vignettes : il peut figurer dans plusieurs rubriques de l'accueil
+        // Same media item, same thumbnails: it can appear in several home page sections
         Viewer.prototype.updateItems = function (key, liked, likes) {
                 for (var index = 0; index < this.items.length; index++) {
                         if (this.items[index].key === key) {
@@ -333,7 +333,7 @@
                 this.toggleItemLike(this.items[this.index]);
         };
 
-        // Depuis la visionneuse ou le cœur d'une vignette
+        // From the viewer or a thumbnail's heart
         Viewer.prototype.toggleItemLike = function (item) {
                 var self = this;
 
@@ -341,7 +341,7 @@
                         return;
                 }
 
-                // Affiché tout de suite, corrigé par la réponse du serveur
+                // Shown immediately, corrected by the server response
                 var wasLiked = item.liked;
                 var oldLikes = item.likes;
                 this.likeBusy[item.key] = true;
@@ -357,14 +357,14 @@
                         credentials: 'same-origin'
                 }).then(function (response) {
                         if (!response.ok) {
-                                throw new Error('Réponse ' + response.status);
+                                throw new Error('Response ' + response.status);
                         }
 
                         return response.json();
                 }).then(function (result) {
                         self.updateItems(item.key, result.liked, result.count);
                 }).catch(function (error) {
-                        console.error('« J\'aime » non enregistré.', error);
+                        console.error('Like not saved.', error);
                         self.updateItems(item.key, wasLiked, oldLikes);
                 }).then(function () {
                         self.likeBusy[item.key] = false;
@@ -386,7 +386,7 @@
                 this.stage.classList.toggle('is-busy', busy);
         };
 
-        // Le serveur refait vignette et aperçu (une ou deux secondes), puis on les recharge
+        // The server regenerates the thumbnail and preview (a second or two), then we reload them
         Viewer.prototype.rotate = function (degrees) {
                 var self = this;
                 var item = this.items[this.index];
@@ -413,7 +413,7 @@
                                 return {};
                         }).then(function (result) {
                                 if (!response.ok) {
-                                        throw new Error(result.error || ('Réponse ' + response.status));
+                                        throw new Error(result.error || ('Response ' + response.status));
                                 }
 
                                 return result;
@@ -422,21 +422,21 @@
                         self.rotateBusy[key] = false;
                         self.updateRotation(key, result);
                 }).catch(function (error) {
-                        console.error('Rotation non enregistrée.', error);
+                        console.error('Rotation not saved.', error);
                         self.rotateBusy[key] = false;
                         self.renderRotate();
                         self.showError('Rotation impossible. ' + error.message);
                 });
         };
 
-        // Message d'erreur sous la photo, effacé au média suivant
+        // Error message under the photo, cleared on the next media item
         Viewer.prototype.showError = function (message) {
                 var error = createElement('span', 'viewer__error', { role: 'alert' });
                 error.textContent = message;
                 this.caption.insertBefore(error, this.caption.firstChild);
         };
 
-        // Même média, mêmes vignettes : il peut figurer dans plusieurs rubriques de l'accueil
+        // Same media item, same thumbnails: it can appear in several home page sections
         Viewer.prototype.updateRotation = function (key, result) {
                 for (var index = 0; index < this.items.length; index++) {
                         var item = this.items[index];
@@ -463,7 +463,7 @@
                         image.height = result.thumb_height;
                 }
 
-                // Toujours sur cette photo : on l'affiche tournée
+                // Still on this photo: show it rotated
                 if (!this.root.hidden && this.items[this.index].key === key) {
                         this.show(this.index);
                 } else {
@@ -536,7 +536,7 @@
                 try {
                         items = JSON.parse(data.textContent || '[]');
                 } catch (error) {
-                        console.error('Liste des médias illisible.', error);
+                        console.error('Unreadable media list.', error);
                         return;
                 }
 

@@ -1,12 +1,12 @@
 <?php
 /*
- * Outils partagés entre le site et le traitement en arrière-plan
- * (bin/process-media.php) : emplacement des galeries et du cache,
- * détection du format des médias, préparation des versions JPEG.
+ * Tools shared between the site and the background processing
+ * (bin/process-media.php): location of the galleries and the cache,
+ * media format detection, preparation of the JPEG versions.
  *
- * Les originaux ne sont jamais modifiés : tout ce qui est calculé
- * (vignettes, aperçus, vidéos converties, fiche album.json) est rangé
- * dans le cache, qui reproduit l'arborescence des galeries.
+ * Originals are never modified: everything that is computed
+ * (thumbnails, previews, converted videos, album.json record) is stored
+ * in the cache, which mirrors the gallery tree.
  */
 
 define('MEDIA_THUMB_SIZE', 400);
@@ -14,10 +14,10 @@ define('MEDIA_PREVIEW_SIZE', 1600);
 define('MEDIA_VIDEO_MAX_WIDTH', 1920);
 define('MEDIA_MANIFEST_NAME', 'album.json');
 
-// Dossiers techniques de l'ancien site, ignorés dans la navigation et le traitement
+// Technical folders of the old site, ignored by navigation and processing
 define('MEDIA_IGNORED_DIRECTORIES', array('Small', 'Middle', 'Legend'));
 
-// Formats que les navigateurs affichent sans conversion
+// Formats that browsers display without conversion
 define('MEDIA_BROWSER_IMAGE_TYPES', array('image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'));
 
 define('MEDIA_VIDEO_EXTENSIONS', array(
@@ -54,7 +54,7 @@ function GetMediaCacheDirectory()
         return rtrim($Configured, DIRECTORY_SEPARATOR);
 }
 
-// URL (relative à la racine du site) sous laquelle le cache est servi
+// URL (relative to the site root) under which the cache is served
 function GetMediaCacheUrl()
 {
         $Configured = getenv('SITEIMAGEPERSO_CACHE_URL');
@@ -91,7 +91,7 @@ function GetGalleryRootNames()
         return $Names;
 }
 
-// Nom affiché d'une galerie, par exemple SITEIMAGEPERSO_GALLERY_LABELS="GalleryPhotos=Galerie des gosses"
+// Display name of a gallery, for example SITEIMAGEPERSO_GALLERY_LABELS="GalleryPhotos=Galerie des gosses"
 function GetGalleryLabel($RootName)
 {
         $Labels = array(
@@ -123,7 +123,7 @@ function IsIgnoredMediaEntry($Name)
                 return TRUE;
         }
 
-        // « Legend » comme « legend » : la casse varie selon les albums
+        // "Legend" as well as "legend": the case varies between albums
         return in_array(strtolower($Name), array_map('strtolower', MEDIA_IGNORED_DIRECTORIES), TRUE);
 }
 
@@ -140,7 +140,7 @@ function NormalizeAlbumRelativePath($RelativePath)
         return trim($RelativePath, '/');
 }
 
-// Clé d'un média : chemin de son album suivi de son nom de fichier
+// A media item's key: its album path followed by its file name
 function GetMediaKey($AlbumPath, $Name)
 {
         return NormalizeAlbumRelativePath($AlbumPath) . '/' . $Name;
@@ -191,10 +191,10 @@ function LoadAlbumManifest($RelativePath)
 }
 
 /*
- * Détermine le type d'un fichier d'après son contenu (et non son extension) :
- * renvoie array('kind' => 'image'|'video'|NULL, 'mime' => ...).
- * Les vidéos à l'extension connue mais au type MIME générique sont
- * confirmées par ffprobe dans le traitement en arrière-plan.
+ * Determines a file's type from its content (not its extension):
+ * returns array('kind' => 'image'|'video'|NULL, 'mime' => ...).
+ * Videos with a known extension but a generic MIME type are
+ * confirmed by ffprobe in the background processing.
  */
 function DetectMediaKind($AbsolutePath, $FileInfo = NULL)
 {
@@ -222,7 +222,7 @@ function DetectMediaKind($AbsolutePath, $FileInfo = NULL)
 
         if (strpos($Mime, 'image/') === 0)
         {
-                // Les SVG ou icônes ne sont pas des photos
+                // SVGs and icons are not photos
                 if (in_array($Mime, array('image/svg+xml', 'image/vnd.microsoft.icon', 'image/x-icon'), TRUE))
                 {
                         return array('kind' => NULL, 'mime' => $Mime);
@@ -251,7 +251,7 @@ function DetectMediaKind($AbsolutePath, $FileInfo = NULL)
         return array('kind' => NULL, 'mime' => $Mime);
 }
 
-// Seuls les quarts de tour sont possibles : 0, 90, 180 ou 270 (sens des aiguilles d'une montre)
+// Only quarter turns are possible: 0, 90, 180 or 270 (clockwise)
 function NormalizeMediaRotation($Degrees)
 {
         $Degrees = (((int) $Degrees % 360) + 360) % 360;
@@ -261,10 +261,10 @@ function NormalizeMediaRotation($Degrees)
 
 function RunMediaCommand($Arguments, &$Output = NULL, &$Errors = NULL)
 {
-        // Sans shell et en locale UTF-8 : sinon les noms accentués
-        // (« Noël », « Vacances à la mer ») sont refusés ou abîmés
+        // No shell and a UTF-8 locale: otherwise names with accents
+        // ("Noël", "Vacances à la mer") are refused or mangled
         $Descriptors = array(1 => array('pipe', 'w'), 2 => array('pipe', 'w'));
-        // VIPS_CONCURRENCY=1 : une image à la fois, mémoire minimale
+        // VIPS_CONCURRENCY=1: one image at a time, minimal memory
         $Environment = array_merge(array('VIPS_CONCURRENCY' => '1'), getenv(), array('LC_ALL' => 'C.UTF-8'));
         $Process = proc_open($Arguments, $Descriptors, $Pipes, NULL, $Environment);
 
@@ -284,14 +284,14 @@ function RunMediaCommand($Arguments, &$Output = NULL, &$Errors = NULL)
         return proc_close($Process);
 }
 
-// Première ligne utile de la sortie d'erreur d'un outil, sans le chemin du fichier
+// First useful line of a tool's error output, without the file path
 function SummarizeToolError($Errors, $SourcePath)
 {
         $Errors = str_replace($SourcePath, basename($SourcePath), (string) $Errors);
 
         foreach (preg_split('/\R/', $Errors) as $Line)
         {
-                // « [mov,mp4,m4a @ 0x55d0c8e2] moov atom not found » : garde le message
+                // "[mov,mp4,m4a @ 0x55d0c8e2] moov atom not found": keep the message
                 $Line = trim(preg_replace('/^\[[^\]]* @ 0x[0-9a-f]+\]\s*/', '', $Line));
 
                 if ($Line !== '')
@@ -304,17 +304,17 @@ function SummarizeToolError($Errors, $SourcePath)
 }
 
 /*
- * Version JPEG d'une image dans un carré de $Size pixels ($Size = 0 :
- * pleine taille), orientation EXIF corrigée puis tournée de $Rotation
- * degrés. vips sait lire JPEG, PNG, WebP, HEIC, AVIF, TIFF et GIF.
- * Renvoie '' si tout va bien, sinon la raison de l'échec.
+ * JPEG version of an image within a $Size-pixel square ($Size = 0:
+ * full size), EXIF orientation fixed, then rotated by $Rotation
+ * degrees. vips can read JPEG, PNG, WebP, HEIC, AVIF, TIFF and GIF.
+ * Returns '' if all goes well, otherwise the reason for the failure.
  */
 function RenderJpegVersion($SourcePath, $DestinationPath, $Size, $Rotation = 0)
 {
         $TemporaryPath = dirname($DestinationPath) . '/.tmp' . getmypid() . '-' . basename($DestinationPath);
         $Target = $TemporaryPath . '[Q=82,strip]';
         $Rotation = NormalizeMediaRotation($Rotation);
-        // Tournée après coup : l'étape intermédiaire, au format vips, ne perd rien
+        // Rotated afterwards: the intermediate step, in vips format, loses nothing
         $Intermediate = ($Rotation !== 0) ? $TemporaryPath . '.v' : NULL;
         $FirstTarget = ($Intermediate !== NULL) ? $Intermediate : $Target;
         $Arguments = array('vipsthumbnail', $SourcePath, '--size', $Size . 'x' . $Size . '>', '-o', $FirstTarget);

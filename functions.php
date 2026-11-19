@@ -140,9 +140,9 @@ function EscapeHtml($Text)
 }
 
 /*
- * Valide la galerie et l'album demandés (paramètres Gallery et Diaporama).
- * L'album doit se trouver dans la galerie. Renvoie les chemins relatifs
- * nettoyés ("./GalleryPhotos/2024") et un indicateur de requête invalide.
+ * Validates the requested gallery and album (Gallery and Diaporama parameters).
+ * The album must be inside the gallery. Returns the cleaned relative
+ * paths ("./GalleryPhotos/2024") and an invalid-request flag.
  */
 function ResolveGallerySelection($GalleryRequest, $DiaporamaRequest)
 {
@@ -196,7 +196,7 @@ function GetAlbumUrl($Gallery, $Album = '')
         return 'index.php?' . http_build_query($Parameters);
 }
 
-// Sous-dossiers d'un album, triés par nom (les plus récents d'abord pour les années)
+// Sub-folders of an album, sorted by name (most recent first for years)
 function ListSubAlbums($RelativePath)
 {
         $ResolvedPath = ResolveGalleryDirectoryPath($RelativePath);
@@ -229,7 +229,7 @@ function ListSubAlbums($RelativePath)
         return $SubAlbums;
 }
 
-// Vignette de couverture : premier média de l'album, ou d'un de ses sous-albums
+// Cover thumbnail: first media item of the album, or of one of its sub-albums
 function FindAlbumCover($RelativePath, $Depth = 0)
 {
         $Manifest = LoadAlbumManifest($RelativePath);
@@ -322,8 +322,8 @@ function RenderBreadcrumb($Gallery, $Album)
 }
 
 /*
- * Page d'un album : fil d'Ariane, introduction, sous-albums, puis grille
- * des photos et vidéos lue dans la fiche album.json du cache.
+ * Album page: breadcrumb, introduction, sub-albums, then the grid
+ * of photos and videos read from the album.json record in the cache.
  */
 function RenderAlbum($Gallery, $Album)
 {
@@ -381,7 +381,7 @@ function RenderAlbum($Gallery, $Album)
         return $Html . RenderViewerData($ViewerItems);
 }
 
-// Une vignette de la grille ; data-index renvoie au média dans RenderViewerData()
+// One grid thumbnail; data-index points to the media item in RenderViewerData()
 function RenderMediaThumb($Index, $Item, $Key)
 {
         $Label = pathinfo($Item['name'], PATHINFO_FILENAME);
@@ -395,14 +395,14 @@ function RenderMediaThumb($Index, $Item, $Key)
                 $Html .= '<span class="media-thumb__badge">' . FormatMediaDuration($Item['duration']) . '</span>';
         }
 
-        // À côté de la vignette et non dedans : un bouton ne peut pas en contenir un autre
+        // Next to the thumbnail, not inside it: a button cannot contain another one
         return $Html . '</button>' . RenderLikeBadge($Key) . '</li>';
 }
 
 /*
- * Cœur et nombre de « j'aime » dans le coin d'une vignette. Une fois
- * connecté, c'est un bouton (un clic aime, un second retire) ; sinon une
- * simple pastille, cachée s'il n'y a pas de « j'aime ».
+ * Heart and number of likes in the corner of a thumbnail. Once
+ * logged in, it is a button (one click likes, a second removes); otherwise a
+ * plain badge, hidden when there are no likes.
  */
 function RenderLikeBadge($Key)
 {
@@ -423,12 +423,12 @@ function RenderLikeBadge($Key)
                 . ' aria-pressed="' . ($Mine ? 'true' : 'false') . '" aria-label="J\'aime">' . $Content . '</button>';
 }
 
-// Médias de la page pour la visionneuse (script/viewer.js)
+// The page's media for the viewer (script/viewer.js)
 function RenderViewerData($ViewerItems)
 {
         $Html = '<script type="application/json" id="album-media"';
 
-        // Sans connexion (hors Docker), pas de bouton « j'aime » ni de rotation
+        // Without login (outside Docker), no like or rotation buttons
         if (GetConnectedEmail() !== '')
         {
                 $Html .= ' data-likes="like.php" data-rotate="rotate.php"';
@@ -440,9 +440,9 @@ function RenderViewerData($ViewerItems)
 }
 
 /*
- * Rubriques « j'aime » de l'accueil (voir BuildLikesSections) : une grille
- * par rubrique et une seule visionneuse pour toutes. Un média aimé apparaît
- * dans plusieurs rubriques ; la visionneuse le montre avec son album.
+ * Home page like sections (see BuildLikesSections): one grid
+ * per section and a single viewer for all of them. A liked media item appears
+ * in several sections; the viewer shows it with its album.
  */
 function RenderLikesSections()
 {
@@ -468,7 +468,7 @@ function RenderLikesSections()
                 $Total = count($Section['media']);
                 $Title = EscapeHtml($Section['title']);
 
-                // Coups de cœur de chacun : repliés, un clic sur le titre les déplie
+                // Each person's favourites: collapsed, clicking the title expands them
                 if ($Section['collapsed'])
                 {
                         $Html .= '<details class="home-likes home-likes--person" id="' . EscapeHtml($Section['id']) . '">'
@@ -518,7 +518,7 @@ function RenderLikesSections()
         return $Html . RenderViewerData($ViewerItems);
 }
 
-// Pastille dans le coin d'une vignette : caméra pour une vidéo, photo pour une image
+// Badge in the corner of a thumbnail: camera for a video, photo for an image
 function RenderMediaTypeIcon($Kind)
 {
         if ($Kind === 'video')
@@ -537,7 +537,7 @@ function RenderMediaTypeIcon($Kind)
                 . '<span class="visually-hidden">' . $Label . '</span></span>';
 }
 
-// Ce dont la visionneuse (script/viewer.js) a besoin pour un média
+// What the viewer (script/viewer.js) needs for a media item
 function GetViewerItem($Item, $Key)
 {
         $Original = empty($Item['full']) ? $Item['original'] : $Item['full'];
@@ -583,7 +583,7 @@ function BuildGalleryTree($Path)
                 return array();
         }
 
-        // La navigation suit l'arborescence des dossiers, à toutes les profondeurs
+        // Navigation follows the folder tree, at every depth
         $MaximumDepth = 32;
 
         return BuildGalleryTreeFromAbsolutePath($ResolvedPath['absolute'], $ResolvedPath['relative'], 0, $MaximumDepth);

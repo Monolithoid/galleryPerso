@@ -1,20 +1,20 @@
-# Caddy devant le conteneur Docker (connexion Google comprise).
-# Caddy obtient et renouvelle seul le certificat HTTPS.
-# À recopier dans le Caddyfile du serveur (souvent /etc/caddy/Caddyfile),
-# en remplaçant famille.example.com par l'adresse du site
-# (la même que SITEIMAGEPERSO_PUBLIC_URL dans .env), puis :
+# Caddy in front of the Docker container (Google login included).
+# Caddy obtains and renews the HTTPS certificate by itself.
+# Copy into the server's Caddyfile (often /etc/caddy/Caddyfile),
+# replacing famille.example.com with the site address
+# (the same as SITEIMAGEPERSO_PUBLIC_URL in .env), then:
 #   sudo systemctl reload caddy
 
 famille.example.com {
-	# Demande aux moteurs de recherche de ne rien indexer, pas même la
-	# page de connexion
+	# Asks search engines not to index anything, not even the
+	# login page
 	header X-Robots-Tag "noindex, nofollow"
 
-	# Caddy installé sur le serveur : port SITEIMAGEPERSO_HTTP_PORT du fichier .env
+	# Caddy installed on the server: port SITEIMAGEPERSO_HTTP_PORT from the .env file
 	reverse_proxy 127.0.0.1:8080
 
-	# Caddy dans un conteneur Docker, avec la galerie dans le même
-	# docker-compose (voir compose-avec-caddy.example.yml) : remplacer la
-	# ligne ci-dessus par
+	# Caddy in a Docker container, with the gallery in the same
+	# docker-compose (see compose-avec-caddy.example.yml): replace the
+	# line above with
 	#   reverse_proxy galerie-auth:4180
 }

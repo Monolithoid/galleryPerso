@@ -1,5 +1,5 @@
 <?php
-// Accueil : les coups de cœur, puis les galeries
+// Home page: the favourites, then the galleries
 $Galleries = array();
 
 foreach (GetGalleryRootNames() as $RootName)
@@ -16,7 +16,7 @@ foreach (GetGalleryRootNames() as $RootName)
 </section>
 <?php endif; ?>
 
-<?php // Coups de cœur de chacun et médias qui font l'unanimité, une fois connecté ?>
+<?php // Each person's favourites and unanimous favourites, once logged in ?>
 <?php echo RenderLikesSections(); ?>
 
 <section class="home-galleries">

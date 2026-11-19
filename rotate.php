@@ -1,10 +1,10 @@
 <?php
 /*
- * Tourne une photo d'un quart de tour (voir lib/rotations.php).
- * Appelé par script/viewer.js : POST, champ « media » = clé du média
- * (chemin de l'album suivi du nom du fichier), champ « degrees » = 90
- * (sens des aiguilles d'une montre) ou -90. Répond en JSON avec la
- * rotation et le média tel que la visionneuse doit le montrer :
+ * Rotates a photo by a quarter turn (see lib/rotations.php).
+ * Called by script/viewer.js: POST, field "media" = media key
+ * (album path followed by the file name), field "degrees" = 90
+ * (clockwise) or -90. Answers in JSON with the
+ * rotation and the media item as the viewer must show it:
  * { "rotation": 90, "thumb": ..., "thumb_width": n, "thumb_height": n, "item": {...} }.
  */
 require 'functions.php';
@@ -26,7 +26,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST')
         SendRotateResponse(405, array('error' => 'Méthode non autorisée.'));
 }
 
-// En-tête posé par la page elle-même : un autre site ne peut pas l'envoyer
+// Header set by the page itself: another site cannot send it
 if (($_SERVER['HTTP_X_GALERIE_ROTATE'] ?? '') !== '1')
 {
         SendRotateResponse(403, array('error' => 'Requête refusée.'));
@@ -52,7 +52,7 @@ if (($Found === NULL) || (CanRotateMedia($Found['item']) === FALSE))
         SendRotateResponse(404, array('error' => 'Photo introuvable.'));
 }
 
-// Volume oublié dans le docker-compose : le dire clairement plutôt qu'un échec muet
+// Volume missing from the docker-compose: say so clearly rather than failing silently
 $RotationsDirectory = dirname(GetRotationsFilePath());
 
 if ((is_dir($RotationsDirectory) === FALSE) || (is_writable($RotationsDirectory) === FALSE))
@@ -67,7 +67,7 @@ $Rotation = RotateMedia($Key, $Found['album'], $Found['item'], $Degrees);
 
 if ($Rotation === NULL)
 {
-        error_log('Rotation impossible : échec de vips sur ' . $Key);
+        error_log('Rotation failed: vips failed on ' . $Key);
         SendRotateResponse(500, array('error' => 'Impossible de tourner la photo (vips n\'a pas pu la refaire).'));
 }
 

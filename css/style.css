@@ -51,7 +51,7 @@ img
         max-width: 100%;
 }
 
-/* En-tête */
+/* Header */
 
 .site-header
 {
@@ -120,7 +120,7 @@ img
         content: "☰ ";
 }
 
-/* Mise en page : menu des albums à gauche, contenu à droite */
+/* Layout: album menu on the left, content on the right */
 
 .layout
 {
@@ -175,7 +175,7 @@ img
         color: var(--muted);
 }
 
-/* Fil d'Ariane et titre d'album */
+/* Breadcrumb and album title */
 
 .breadcrumb
 {
@@ -225,7 +225,7 @@ img
         color: #8a1c1c;
 }
 
-/* Cartes des sous-albums */
+/* Sub-album cards */
 
 .album-cards
 {
@@ -281,7 +281,7 @@ img
         color: var(--muted);
 }
 
-/* Grille des photos et vidéos */
+/* Photo and video grid */
 
 .media-grid
 {
@@ -444,7 +444,7 @@ img
         border: 0;
 }
 
-/* Accueil */
+/* Home page */
 
 .page-home .site-main
 {
@@ -480,7 +480,7 @@ img
         display: none;
 }
 
-/* Flèche qui tourne quand la rubrique est dépliée */
+/* Arrow that turns when the section is expanded */
 .home-likes--person summary::before
 {
         content: "▸";
@@ -520,7 +520,7 @@ img
         vertical-align: middle;
 }
 
-/* Visionneuse */
+/* Viewer */
 
 .viewer
 {
@@ -672,7 +672,7 @@ img
         cursor: progress;
 }
 
-/* Photo en cours de rotation par le serveur */
+/* Photo being rotated by the server */
 .viewer__stage.is-busy img
 {
         opacity: 0.5;
@@ -696,7 +696,7 @@ body.viewer-open
         overflow: hidden;
 }
 
-/* Téléphones et petites tablettes */
+/* Phones and small tablets */
 
 @media (max-width: 800px)
 {

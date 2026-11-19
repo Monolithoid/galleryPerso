@@ -1,11 +1,11 @@
 <?php
 /*
- * Rotation des photos : quarts de tour enregistrés, fichiers du cache
- * refaits tournés sans toucher à l'original, et rotation reprise par le
- * traitement en arrière-plan (bin/process-media.php), même après
- * effacement du cache.
- * Lancement : php tests/RotationsTest.php
- * Les cas qui demandent vipsthumbnail sont ignorés s'il n'est pas installé.
+ * Photo rotation: quarter turns recorded, cached files
+ * regenerated rotated without touching the original, and rotation picked up by the
+ * background processing (bin/process-media.php), even after
+ * the cache is deleted.
+ * Run: php tests/RotationsTest.php
+ * Cases that need vipsthumbnail are skipped if it is not installed.
  */
 
 function assertSameValue($expected, $actual, $message)
@@ -47,7 +47,7 @@ function removeDirectoryRecursively($directory)
         rmdir($directory);
 }
 
-// Couleur dominante d'un pixel : 'rouge' ou 'bleu'
+// Dominant colour of a pixel: 'rouge' (red) or 'bleu' (blue)
 function colorAt($path, $x, $y)
 {
         $image = imagecreatefromjpeg($path);
@@ -60,7 +60,7 @@ function colorAt($path, $x, $y)
 function runProcessor()
 {
         exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(__DIR__ . '/../bin/process-media.php') . ' --once 2>&1', $output, $exitCode);
-        assertSameValue(0, $exitCode, 'Le traitement se termine sans erreur : ' . implode(PHP_EOL, $output));
+        assertSameValue(0, $exitCode, 'Processing ends without error: ' . implode(PHP_EOL, $output));
 }
 
 $WorkDirectory = sys_get_temp_dir() . '/galerie-rotations-' . getmypid();
@@ -82,30 +82,30 @@ $exitCode = 0;
 
 try
 {
-        assertSameValue(270, NormalizeMediaRotation(-90), '-90 degrés = 270');
-        assertSameValue(90, NormalizeMediaRotation(450), '450 degrés = 90');
-        assertSameValue(0, NormalizeMediaRotation(45), 'Pas de rotation hors quart de tour');
-        assertSameValue(array('a.jpg' => 180), ParseRotationsData('{"a.jpg": 180, "b.jpg": 0, "c.jpg": 33}'), 'Seules les vraies rotations sont gardées');
+        assertSameValue(270, NormalizeMediaRotation(-90), '-90 degrees = 270');
+        assertSameValue(90, NormalizeMediaRotation(450), '450 degrees = 90');
+        assertSameValue(0, NormalizeMediaRotation(45), 'No rotation other than quarter turns');
+        assertSameValue(array('a.jpg' => 180), ParseRotationsData('{"a.jpg": 180, "b.jpg": 0, "c.jpg": 33}'), 'Only real rotations are kept');
 
         $Item = array('name' => 'a.jpg', 'kind' => 'image', 'thumb' => 'cache/a.jpg.thumb.jpg', 'thumb_width' => 400, 'thumb_height' => 300,
                 'preview' => 'cache/a.jpg.preview.jpg', 'full' => NULL, 'width' => 1600, 'height' => 1200, 'rotation' => 0);
         $Rotated = ApplyMediaRotation($Item, 90);
         assertSameValue(array('cache/a.jpg.thumb.jpg?r=90', 300, 400, 1200, 1600), array($Rotated['thumb'], $Rotated['thumb_width'], $Rotated['thumb_height'], $Rotated['width'], $Rotated['height']),
-                'Cache refait mais fiche pas encore à jour : dimensions échangées, adresse changée');
+                'Cache regenerated but record not yet updated: dimensions swapped, address changed');
         $Item['rotation'] = 90;
         $Rotated = ApplyMediaRotation(array('thumb_width' => 300, 'thumb_height' => 400, 'width' => 1200, 'height' => 1600) + $Item, 90);
-        assertSameValue(array(300, 400), array($Rotated['thumb_width'], $Rotated['thumb_height']), 'Fiche déjà à jour : dimensions gardées');
-        assertSameValue('cache/a.jpg.thumb.jpg', ApplyMediaRotation($Item, 0)['thumb'], 'Sans rotation, adresse d\'origine');
-        assertSameValue(FALSE, CanRotateMedia(array('kind' => 'image', 'preview' => NULL)), 'Un GIF animé ne se tourne pas');
-        assertSameValue(FALSE, CanRotateMedia(array('kind' => 'video', 'preview' => 'p.jpg')), 'Une vidéo ne se tourne pas');
+        assertSameValue(array(300, 400), array($Rotated['thumb_width'], $Rotated['thumb_height']), 'Record already updated: dimensions kept');
+        assertSameValue('cache/a.jpg.thumb.jpg', ApplyMediaRotation($Item, 0)['thumb'], 'Without rotation, original address');
+        assertSameValue(FALSE, CanRotateMedia(array('kind' => 'image', 'preview' => NULL)), 'An animated GIF cannot be rotated');
+        assertSameValue(FALSE, CanRotateMedia(array('kind' => 'video', 'preview' => 'p.jpg')), 'A video cannot be rotated');
 
         if (trim((string) shell_exec('command -v vipsthumbnail 2>/dev/null')) === '')
         {
-                echo 'vipsthumbnail absent : tests de rotation des fichiers ignorés.' . PHP_EOL;
+                echo 'vipsthumbnail missing: file rotation tests skipped.' . PHP_EOL;
         }
         else
         {
-                // 300x200 : moitié gauche rouge, moitié droite bleue
+                // 300x200: left half red, right half blue
                 $Original = $AlbumDirectory . '/photo.jpg';
                 $Image = imagecreatetruecolor(300, 200);
                 imagefill($Image, 0, 0, imagecolorallocate($Image, 220, 30, 30));
@@ -119,40 +119,40 @@ try
 
                 runProcessor();
                 $Found = FindLikedMedia($Key);
-                assertSameValue(0, GetAppliedRotation($Found['item']), 'Photo traitée sans rotation');
+                assertSameValue(0, GetAppliedRotation($Found['item']), 'Photo processed without rotation');
                 assertSameValue(array(300, 200), array_slice(getimagesize($Thumb), 0, 2), 'Vignette d\'origine en paysage');
 
-                assertSameValue(90, RotateMedia($Key, $Found['album'], $Found['item'], 90), 'Un quart de tour à droite');
+                assertSameValue(90, RotateMedia($Key, $Found['album'], $Found['item'], 90), 'A quarter turn to the right');
                 assertSameValue(array(200, 300), array_slice(getimagesize($Thumb), 0, 2), 'Vignette refaite en portrait');
-                assertSameValue(array(200, 300), array_slice(getimagesize($AlbumCache . '/photo.jpg.preview.jpg'), 0, 2), 'Aperçu refait en portrait');
-                assertSameValue('rouge', colorAt($Thumb, 100, 20), 'À droite : la gauche de la photo passe en haut');
-                assertSameValue(array($Key => 90), json_decode(file_get_contents(GetRotationsFilePath()), TRUE), 'Rotation enregistrée');
+                assertSameValue(array(200, 300), array_slice(getimagesize($AlbumCache . '/photo.jpg.preview.jpg'), 0, 2), 'Preview regenerated in portrait');
+                assertSameValue('rouge', colorAt($Thumb, 100, 20), 'Right: the left of the photo goes to the top');
+                assertSameValue(array($Key => 90), json_decode(file_get_contents(GetRotationsFilePath()), TRUE), 'Rotation saved');
                 assertSameValue($OriginalHash, md5_file($Original), 'Original intact');
 
-                assertSameValue(0, RotateMedia($Key, $Found['album'], $Found['item'], -90), 'Retour à l\'endroit');
-                assertSameValue('{}', trim(file_get_contents(GetRotationsFilePath())), 'Une photo à l\'endroit sort du fichier');
-                assertSameValue(270, RotateMedia($Key, $Found['album'], $Found['item'], -90), 'Un quart de tour à gauche');
-                assertSameValue('bleu', colorAt($Thumb, 100, 20), 'À gauche : la droite de la photo passe en haut');
+                assertSameValue(0, RotateMedia($Key, $Found['album'], $Found['item'], -90), 'Back upright');
+                assertSameValue('{}', trim(file_get_contents(GetRotationsFilePath())), 'An upright photo leaves the file');
+                assertSameValue(270, RotateMedia($Key, $Found['album'], $Found['item'], -90), 'A quarter turn to the left');
+                assertSameValue('bleu', colorAt($Thumb, 100, 20), 'Left: the right of the photo goes to the top');
 
-                // Le traitement met la fiche à jour d'après la rotation demandée
+                // Processing updates the record from the requested rotation
                 runProcessor();
                 $Manifest = json_decode(file_get_contents($AlbumCache . '/album.json'), TRUE);
                 assertSameValue(array(270, 200, 300), array($Manifest['items'][0]['rotation'], $Manifest['items'][0]['thumb_width'], $Manifest['items'][0]['thumb_height']),
-                        'La fiche note la rotation appliquée');
+                        'The record notes the applied rotation');
 
-                // Cache effacé : reconstruit avec la rotation
+                // Cache deleted: rebuilt with the rotation
                 removeDirectoryRecursively($CacheDirectory);
                 runProcessor();
-                assertSameValue(array(200, 300), array_slice(getimagesize($Thumb), 0, 2), 'Cache reconstruit avec la photo tournée');
-                assertSameValue('bleu', colorAt($Thumb, 100, 20), 'Dans le bon sens');
+                assertSameValue(array(200, 300), array_slice(getimagesize($Thumb), 0, 2), 'Cache rebuilt with the rotated photo');
+                assertSameValue('bleu', colorAt($Thumb, 100, 20), 'The right way round');
                 assertSameValue($OriginalHash, md5_file($Original), 'Original toujours intact');
         }
 
-        echo 'RotationsTest : OK' . PHP_EOL;
+        echo 'RotationsTest: OK' . PHP_EOL;
 }
 catch (Throwable $Error)
 {
-        fwrite(STDERR, 'RotationsTest : ÉCHEC - ' . $Error->getMessage() . PHP_EOL);
+        fwrite(STDERR, 'RotationsTest: FAILED - ' . $Error->getMessage() . PHP_EOL);
         $exitCode = 1;
 }
 
